@@ -1208,6 +1208,8 @@ equipment_types
 
 # 十五、建議技術架構
 
+> **V1 實作說明（2026-08-11）：** 本文件建議採用 Flutter，但 V1 實際實作改用 **Next.js（App Router、TypeScript）＋ Supabase**，以行動優先（mobile-first）的響應式網頁取代原生 App。原因是本機環境未安裝 Flutter SDK、Xcode 與 Android 工具鏈，且需要在當天完成瀏覽器可測試的版本。此變更僅影響前端框架選擇，資料模型、RLS 權限規則與點選優先的互動需求均不變，未來仍可視需要另外開發原生 App。
+
 ## 15.1 建議方案A
 
 ### 前端

@@ -5,7 +5,7 @@
 **版本：v1.0**
 **最後更新：2026-08-11**
 **狀態：Mandatory**
-**技術棧：Flutter（App）／Supabase（Postgres + RLS + Auth）**
+**技術棧：Next.js（Mobile-first Web App）／Supabase（Postgres + RLS + Auth）**
 **適用範圍：所有 App、Backend、Database、Migration、API、Repository、AI Coding Agent 任務**
 **延伸文件：**
 - 未來功能的完整資料模型草案 → `docs/future-architecture-notes.md`
