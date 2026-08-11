@@ -1,0 +1,345 @@
+"use client";
+
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useOrg } from "@/lib/OrgContext";
+import { t } from "@/lib/strings";
+import {
+  getWorkoutDetail,
+  completeWorkoutSession,
+} from "@/lib/repositories/workouts";
+import { removeExercise } from "@/lib/repositories/workoutExercises";
+import { createSet, duplicateSet, updateSet, completeSet, deleteSet } from "@/lib/repositories/workoutSets";
+import { getClient } from "@/lib/repositories/clients";
+import type { WorkoutSessionDetail } from "@/lib/repositories/types";
+import { toFriendlyMessage } from "@/lib/errors";
+import { LoadingState, ErrorState, EmptyState } from "@/components/StateBlock";
+import { SetRow } from "@/components/SetRow";
+import { Toast } from "@/components/Toast";
+
+function formatElapsed(startedAt: string) {
+  const ms = Date.now() - new Date(startedAt).getTime();
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+export default function WorkoutRecordingPage() {
+  const params = useParams<{ sessionId: string }>();
+  const router = useRouter();
+  const { organizationId } = useOrg();
+
+  const [detail, setDetail] = useState<WorkoutSessionDetail | null | undefined>(undefined);
+  const [clientName, setClientName] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone?: "default" | "error" } | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const [, setElapsedTick] = useState(0);
+
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const data = await getWorkoutDetail(params.sessionId);
+      setDetail(data);
+      if (data) {
+        const client = await getClient(data.client_id);
+        setClientName(client?.full_name ?? "");
+      }
+    } catch (err) {
+      setError(toFriendlyMessage(err));
+    }
+  }, [params.sessionId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!detail || detail.status !== "draft") return;
+    const id = setInterval(() => setElapsedTick((v) => v + 1), 1000);
+    return () => clearInterval(id);
+  }, [detail]);
+
+  function showToast(message: string, tone: "default" | "error" = "default") {
+    setToast({ message, tone });
+  }
+
+  function persistSetField(setId: string, patch: { weight_value?: number; reps?: number }) {
+    if (debounceTimers.current[setId]) clearTimeout(debounceTimers.current[setId]);
+    debounceTimers.current[setId] = setTimeout(async () => {
+      try {
+        await updateSet(setId, patch);
+      } catch (err) {
+        showToast(toFriendlyMessage(err), "error");
+      }
+    }, 350);
+  }
+
+  function updateLocalSet(
+    workoutExerciseId: string,
+    setId: string,
+    patch: Partial<{ weight_value: number; reps: number; is_completed: boolean; completed_at: string | null }>,
+  ) {
+    setDetail((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        workout_exercises: prev.workout_exercises.map((we) =>
+          we.id !== workoutExerciseId
+            ? we
+            : {
+                ...we,
+                sets: we.sets.map((s) => (s.id !== setId ? s : { ...s, ...patch })),
+              },
+        ),
+      };
+    });
+  }
+
+  function handleChangeWeight(workoutExerciseId: string, setId: string, value: number) {
+    updateLocalSet(workoutExerciseId, setId, { weight_value: value });
+    persistSetField(setId, { weight_value: value });
+  }
+
+  function handleChangeReps(workoutExerciseId: string, setId: string, value: number) {
+    updateLocalSet(workoutExerciseId, setId, { reps: value });
+    persistSetField(setId, { reps: value });
+  }
+
+  async function handleToggleComplete(workoutExerciseId: string, setId: string, completed: boolean) {
+    updateLocalSet(workoutExerciseId, setId, {
+      is_completed: completed,
+      completed_at: completed ? new Date().toISOString() : null,
+    });
+    try {
+      await completeSet(setId, completed);
+    } catch (err) {
+      showToast(toFriendlyMessage(err), "error");
+      load();
+    }
+  }
+
+  async function handleDeleteSet(workoutExerciseId: string, setId: string) {
+    setDetail((prev) =>
+      prev
+        ? {
+            ...prev,
+            workout_exercises: prev.workout_exercises.map((we) =>
+              we.id !== workoutExerciseId
+                ? we
+                : { ...we, sets: we.sets.filter((s) => s.id !== setId) },
+            ),
+          }
+        : prev,
+    );
+    try {
+      await deleteSet(setId);
+    } catch (err) {
+      showToast(toFriendlyMessage(err), "error");
+      load();
+    }
+  }
+
+  async function handleAddSet(workoutExerciseId: string) {
+    const we = detail?.workout_exercises.find((e) => e.id === workoutExerciseId);
+    if (!we) return;
+    try {
+      const newSet =
+        we.sets.length > 0
+          ? await duplicateSet(organizationId, workoutExerciseId, we.sets[we.sets.length - 1])
+          : await createSet(organizationId, workoutExerciseId, { set_number: 1, weight_value: 0, reps: 10 });
+      setDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              workout_exercises: prev.workout_exercises.map((e) =>
+                e.id !== workoutExerciseId ? e : { ...e, sets: [...e.sets, newSet] },
+              ),
+            }
+          : prev,
+      );
+    } catch (err) {
+      showToast(toFriendlyMessage(err), "error");
+    }
+  }
+
+  async function handleRemoveExercise(workoutExerciseId: string) {
+    if (!window.confirm(t.workout.deleteExerciseConfirm)) return;
+    const previous = detail;
+    setDetail((prev) =>
+      prev
+        ? { ...prev, workout_exercises: prev.workout_exercises.filter((e) => e.id !== workoutExerciseId) }
+        : prev,
+    );
+    try {
+      await removeExercise(workoutExerciseId);
+    } catch (err) {
+      showToast(toFriendlyMessage(err), "error");
+      setDetail(previous);
+    }
+  }
+
+  async function handleComplete() {
+    if (!detail) return;
+    if (detail.workout_exercises.length === 0) {
+      if (!window.confirm(t.workout.completeConfirmEmpty)) return;
+    }
+    setCompleting(true);
+    try {
+      await completeWorkoutSession(detail.id);
+      router.push(`/clients/${detail.client_id}`);
+    } catch (err) {
+      showToast(toFriendlyMessage(err), "error");
+      setCompleting(false);
+    }
+  }
+
+  if (detail === undefined) {
+    return (
+      <div className="page">
+        <header className="page-header">
+          <button className="icon-btn" onClick={() => router.back()} aria-label={t.common.back}>
+            ←
+          </button>
+        </header>
+        <div className="page-body">
+          <LoadingState />
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !detail) {
+    return (
+      <div className="page">
+        <header className="page-header">
+          <button className="icon-btn" onClick={() => router.back()} aria-label={t.common.back}>
+            ←
+          </button>
+        </header>
+        <div className="page-body">
+          <ErrorState message={error} onRetry={load} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <div className="page">
+        <header className="page-header">
+          <button className="icon-btn" onClick={() => router.back()} aria-label={t.common.back}>
+            ←
+          </button>
+        </header>
+        <div className="page-body">
+          <EmptyState icon="🚫" message="找不到這堂課程。" />
+        </div>
+      </div>
+    );
+  }
+
+  const isDraft = detail.status === "draft";
+
+  return (
+    <div className="page">
+      <header className="page-header">
+        <button
+          className="icon-btn"
+          onClick={() => router.push(`/clients/${detail.client_id}`)}
+          aria-label={t.common.back}
+        >
+          ←
+        </button>
+        <div style={{ flex: 1, overflow: "hidden" }}>
+          <h1 style={{ fontSize: 16 }}>{clientName || t.workout.todaySession}</h1>
+          <div className="muted" style={{ fontSize: 12 }}>
+            {new Date(detail.session_date).toLocaleDateString("zh-TW")}
+            {isDraft ? ` · ${formatElapsed(detail.started_at)}` : ""}
+          </div>
+        </div>
+        {!isDraft ? (
+          <span className={`badge ${detail.status === "completed" ? "badge-completed" : "badge-cancelled"}`}>
+            {detail.status === "completed" ? t.workout.completed : t.workout.cancelled}
+          </span>
+        ) : null}
+      </header>
+
+      <div className="page-body">
+        {error ? <div className="banner banner-error">{error}</div> : null}
+
+        {detail.workout_exercises.length === 0 ? (
+          <EmptyState icon="🏋️" message={t.workout.noExercisesYet} />
+        ) : (
+          detail.workout_exercises.map((we) => (
+            <div className="card" key={we.id}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>{we.exercise.name_zh_tw}</div>
+                  {we.exercise.name_en ? (
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      {we.exercise.name_en}
+                    </div>
+                  ) : null}
+                </div>
+                {isDraft ? (
+                  <button
+                    className="icon-btn"
+                    aria-label={t.workout.deleteExercise}
+                    onClick={() => handleRemoveExercise(we.id)}
+                  >
+                    🗑️
+                  </button>
+                ) : null}
+              </div>
+
+              <div style={{ marginTop: 8 }}>
+                {we.sets.map((s) => (
+                  <SetRow
+                    key={s.id}
+                    set={s}
+                    onChangeWeight={(v) => isDraft && handleChangeWeight(we.id, s.id, v)}
+                    onChangeReps={(v) => isDraft && handleChangeReps(we.id, s.id, v)}
+                    onToggleComplete={(c) => isDraft && handleToggleComplete(we.id, s.id, c)}
+                    onDelete={() => isDraft && handleDeleteSet(we.id, s.id)}
+                  />
+                ))}
+              </div>
+
+              {isDraft ? (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: 10 }}
+                  onClick={() => handleAddSet(we.id)}
+                >
+                  {t.workout.addSet}
+                </button>
+              ) : null}
+            </div>
+          ))
+        )}
+      </div>
+
+      {isDraft ? (
+        <div className="bottom-bar">
+          <button
+            className="btn btn-secondary"
+            onClick={() => router.push(`/workout/${detail.id}/add-exercise`)}
+          >
+            {t.workout.addExercise}
+          </button>
+          <button className="btn btn-primary" onClick={handleComplete} disabled={completing}>
+            {completing ? t.common.loading : t.workout.completeSession}
+          </button>
+        </div>
+      ) : null}
+
+      {toast ? (
+        <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />
+      ) : null}
+    </div>
+  );
+}
