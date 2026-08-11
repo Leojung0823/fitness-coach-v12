@@ -78,11 +78,24 @@ export async function listExercisesByMuscleGroup(
   muscleGroupId: string,
 ): Promise<Exercise[]> {
   const supabase = createSupabaseClient();
+
+  // A top-level muscle group (e.g. 腿部) must also match exercises tagged
+  // with one of its children (e.g. 股四頭肌/腿後肌/小腿) — see seed.sql,
+  // most leg/back exercises use the specific child muscle group as their
+  // primary_muscle_group_id, not the parent.
+  const { data: children, error: childError } = await supabase
+    .from("muscle_groups")
+    .select("id")
+    .eq("parent_id", muscleGroupId);
+  if (childError) throw new RepositoryError(childError.message, childError);
+
+  const groupIds = [muscleGroupId, ...(children ?? []).map((c) => c.id)];
+
   const { data, error } = await supabase
     .from("exercises")
     .select("*")
     .eq("is_active", true)
-    .eq("primary_muscle_group_id", muscleGroupId)
+    .in("primary_muscle_group_id", groupIds)
     .or(`is_system.eq.true,organization_id.eq.${organizationId}`)
     .order("name_zh_tw", { ascending: true });
   if (error) throw new RepositoryError(error.message, error);
