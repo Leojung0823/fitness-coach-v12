@@ -41,30 +41,37 @@ function ElapsedTimer({ startedAt }: { startedAt: string }) {
 /** Manual start/stop stopwatch — independent of the session's own elapsed
  * timer (that one tracks the whole session; this is for whatever the coach
  * wants to time in the moment, e.g. a rest interval). Local UI state only,
- * not persisted — isolated so its 1s tick doesn't re-render the page. */
+ * not persisted — isolated so its tick doesn't re-render the page. Elapsed
+ * time is computed from a start timestamp each tick (not accumulated by the
+ * interval count) so it stays accurate even if a tick is delayed. */
 function Stopwatch() {
   const [running, setRunning] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startedAtRef = useRef(0);
 
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    const id = setInterval(() => setElapsedMs(Date.now() - startedAtRef.current), 50);
     return () => clearInterval(id);
   }, [running]);
 
-  const minutes = Math.floor(elapsedSeconds / 60);
-  const seconds = elapsedSeconds % 60;
+  const totalCentiseconds = Math.floor(elapsedMs / 10);
+  const minutes = Math.floor(totalCentiseconds / 6000);
+  const seconds = Math.floor((totalCentiseconds % 6000) / 100);
+  const centiseconds = totalCentiseconds % 100;
+  const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
     <div className="card stopwatch-card">
       <div className="stopwatch-display">
-        {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+        {pad(minutes)}:{pad(seconds)}:{pad(centiseconds)}
       </div>
       <div className="stopwatch-controls">
         <button
           className="btn btn-secondary btn-lg"
           onClick={() => {
-            setElapsedSeconds(0);
+            startedAtRef.current = Date.now();
+            setElapsedMs(0);
             setRunning(true);
           }}
           disabled={running}
