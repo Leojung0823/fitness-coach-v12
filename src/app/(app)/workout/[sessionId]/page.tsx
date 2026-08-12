@@ -38,22 +38,55 @@ function ElapsedTimer({ startedAt }: { startedAt: string }) {
   return <>{formatElapsed(startedAt)}</>;
 }
 
-/** Manual start/stop stopwatch — independent of the session's own elapsed
- * timer (that one tracks the whole session; this is for whatever the coach
- * wants to time in the moment, e.g. a rest interval). Local UI state only,
- * not persisted — isolated so its tick doesn't re-render the page. Elapsed
- * time is computed from a start timestamp each tick (not accumulated by the
- * interval count) so it stays accurate even if a tick is delayed. */
+/** Manual stopwatch — independent of the session's own elapsed timer (that
+ * one tracks the whole session; this is for whatever the coach wants to
+ * time in the moment, e.g. a rest interval). Local UI state only, not
+ * persisted — isolated so its tick doesn't re-render the page.
+ *
+ * The primary button is Start until first pressed, then toggles
+ * running/paused as 暫停 (label stays 暫停 the whole time it's mid-timing —
+ * only 結束 resets it back to 開始). Elapsed time is tracked as accumulated
+ * completed segments + the current running segment computed from a
+ * timestamp each tick, so pausing/resuming never drifts. */
 function Stopwatch() {
   const [running, setRunning] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const startedAtRef = useRef(0);
+  const accumulatedMsRef = useRef(0);
+  const runStartedAtRef = useRef(0);
 
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => setElapsedMs(Date.now() - startedAtRef.current), 50);
+    const id = setInterval(
+      () => setElapsedMs(accumulatedMsRef.current + (Date.now() - runStartedAtRef.current)),
+      50,
+    );
     return () => clearInterval(id);
   }, [running]);
+
+  function handlePrimary() {
+    if (!hasStarted) {
+      accumulatedMsRef.current = 0;
+      runStartedAtRef.current = Date.now();
+      setElapsedMs(0);
+      setHasStarted(true);
+      setRunning(true);
+    } else if (running) {
+      accumulatedMsRef.current += Date.now() - runStartedAtRef.current;
+      setElapsedMs(accumulatedMsRef.current);
+      setRunning(false);
+    } else {
+      runStartedAtRef.current = Date.now();
+      setRunning(true);
+    }
+  }
+
+  function handleEnd() {
+    setRunning(false);
+    setHasStarted(false);
+    accumulatedMsRef.current = 0;
+    setElapsedMs(0);
+  }
 
   const totalCentiseconds = Math.floor(elapsedMs / 10);
   const minutes = Math.floor(totalCentiseconds / 6000);
@@ -67,18 +100,10 @@ function Stopwatch() {
         {pad(minutes)}:{pad(seconds)}:{pad(centiseconds)}
       </div>
       <div className="stopwatch-controls">
-        <button
-          className="btn btn-secondary btn-lg"
-          onClick={() => {
-            startedAtRef.current = Date.now();
-            setElapsedMs(0);
-            setRunning(true);
-          }}
-          disabled={running}
-        >
-          {t.workout.stopwatchStart}
+        <button className="btn btn-secondary btn-lg" onClick={handlePrimary}>
+          {hasStarted ? t.workout.stopwatchPause : t.workout.stopwatchStart}
         </button>
-        <button className="btn btn-secondary btn-lg" onClick={() => setRunning(false)} disabled={!running}>
+        <button className="btn btn-secondary btn-lg" onClick={handleEnd} disabled={!hasStarted}>
           {t.workout.stopwatchStop}
         </button>
       </div>

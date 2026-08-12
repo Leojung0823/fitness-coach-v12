@@ -94,6 +94,7 @@ export const t = {
     sessionTime: "課程時間",
     sessionDuration: "已進行時長",
     stopwatchStart: "開始",
+    stopwatchPause: "暫停",
     stopwatchStop: "結束",
     addExercise: "新增動作",
     completeSession: "完成課程",
