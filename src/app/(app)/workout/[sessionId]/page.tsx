@@ -8,6 +8,7 @@ import {
   getWorkoutDetail,
   completeWorkoutSession,
   updateWorkoutSessionSchedule,
+  deleteWorkoutSession,
 } from "@/lib/repositories/workouts";
 import { removeExercise } from "@/lib/repositories/workoutExercises";
 import { createSet, duplicateSet, updateSet, completeSet, deleteSet } from "@/lib/repositories/workoutSets";
@@ -16,6 +17,7 @@ import { toFriendlyMessage } from "@/lib/errors";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateBlock";
 import { SetRow } from "@/components/SetRow";
 import { Toast } from "@/components/Toast";
+import { formatDateWithWeekday, weekdayLabel } from "@/lib/dateFormat";
 
 function formatElapsed(startedAt: string) {
   const ms = Date.now() - new Date(startedAt).getTime();
@@ -59,6 +61,10 @@ export default function WorkoutRecordingPage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone?: "default" | "error" } | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // A completed session opens read-only; the coach must explicitly tap
+  // 編輯 to unlock it. Draft sessions are always implicitly editable.
+  const [editMode, setEditMode] = useState(false);
 
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -75,6 +81,12 @@ export default function WorkoutRecordingPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Reset edit mode when navigating to a different session (App Router
+  // keeps this component mounted across dynamic-segment navigation).
+  useEffect(() => {
+    setEditMode(false);
+  }, [params.sessionId]);
 
   function showToast(message: string, tone: "default" | "error" = "default") {
     setToast({ message, tone });
@@ -229,6 +241,19 @@ export default function WorkoutRecordingPage() {
     }
   }
 
+  async function handleDeleteSession() {
+    if (!detail) return;
+    if (!window.confirm(t.workout.deleteSessionConfirm)) return;
+    setDeleting(true);
+    try {
+      await deleteWorkoutSession(detail.id);
+      router.push(`/clients/${detail.client_id}`);
+    } catch (err) {
+      showToast(toFriendlyMessage(err), "error");
+      setDeleting(false);
+    }
+  }
+
   if (detail === undefined) {
     return (
       <div className="page">
@@ -280,6 +305,9 @@ export default function WorkoutRecordingPage() {
   // locked. Date/time rescheduling still stays draft-only below — that's
   // a different concern from fixing a completed session's recorded content.
   const editable = detail.status !== "cancelled";
+  // Draft sessions are always mid-editing; a completed session opens
+  // read-only until the coach explicitly taps 編輯.
+  const canEditContent = editable && (isDraft || editMode);
 
   return (
     <div className="page">
@@ -297,7 +325,7 @@ export default function WorkoutRecordingPage() {
             {t.workout.sessionTime}
           </div>
           {isDraft ? (
-            <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
               <input
                 type="date"
                 className="input input-sm"
@@ -305,6 +333,7 @@ export default function WorkoutRecordingPage() {
                 value={detail.session_date}
                 onChange={(e) => handleChangeSchedule(e.target.value, toTimeInputValue(detail.started_at))}
               />
+              <span className="muted" style={{ fontSize: 12 }}>{weekdayLabel(detail.session_date)}</span>
               <input
                 type="time"
                 className="input input-sm"
@@ -315,8 +344,7 @@ export default function WorkoutRecordingPage() {
             </div>
           ) : (
             <div style={{ fontSize: 13, marginTop: 2 }}>
-              {new Date(detail.session_date).toLocaleDateString("zh-TW")}{" "}
-              {toTimeInputValue(detail.started_at)}
+              {formatDateWithWeekday(detail.session_date)} {toTimeInputValue(detail.started_at)}
             </div>
           )}
         </div>
@@ -354,7 +382,7 @@ export default function WorkoutRecordingPage() {
                     </div>
                   ) : null}
                 </div>
-                {editable ? (
+                {canEditContent ? (
                   <button
                     className="icon-btn"
                     aria-label={t.workout.deleteExercise}
@@ -370,16 +398,16 @@ export default function WorkoutRecordingPage() {
                   <SetRow
                     key={s.id}
                     set={s}
-                    disabled={!editable}
-                    onChangeWeight={(v) => editable && handleChangeWeight(we.id, s.id, v)}
-                    onChangeReps={(v) => editable && handleChangeReps(we.id, s.id, v)}
-                    onToggleComplete={(c) => editable && handleToggleComplete(we.id, s.id, c)}
-                    onDelete={() => editable && handleDeleteSet(we.id, s.id)}
+                    disabled={!canEditContent}
+                    onChangeWeight={(v) => canEditContent && handleChangeWeight(we.id, s.id, v)}
+                    onChangeReps={(v) => canEditContent && handleChangeReps(we.id, s.id, v)}
+                    onToggleComplete={(c) => canEditContent && handleToggleComplete(we.id, s.id, c)}
+                    onDelete={() => canEditContent && handleDeleteSet(we.id, s.id)}
                   />
                 ))}
               </div>
 
-              {editable ? (
+              {canEditContent ? (
                 <button
                   className="btn btn-secondary btn-sm"
                   style={{ marginTop: 10 }}
@@ -393,7 +421,7 @@ export default function WorkoutRecordingPage() {
         )}
       </div>
 
-      {editable ? (
+      {isDraft ? (
         <div className="bottom-bar">
           <button
             className="btn btn-secondary"
@@ -401,11 +429,34 @@ export default function WorkoutRecordingPage() {
           >
             {t.workout.addExercise}
           </button>
-          {isDraft ? (
-            <button className="btn btn-secondary" onClick={handleComplete} disabled={completing}>
-              {completing ? t.common.loading : t.workout.completeSession}
-            </button>
-          ) : null}
+          <button className="btn btn-secondary" onClick={handleComplete} disabled={completing}>
+            {completing ? t.common.loading : t.workout.completeSession}
+          </button>
+        </div>
+      ) : null}
+
+      {editable && !isDraft && !editMode ? (
+        <div className="bottom-bar">
+          <button className="btn btn-secondary" onClick={() => setEditMode(true)}>
+            {t.common.edit}
+          </button>
+          <button className="btn btn-secondary" onClick={handleDeleteSession} disabled={deleting}>
+            {deleting ? t.common.loading : t.common.delete}
+          </button>
+        </div>
+      ) : null}
+
+      {editable && !isDraft && editMode ? (
+        <div className="bottom-bar">
+          <button
+            className="btn btn-secondary"
+            onClick={() => router.push(`/workout/${detail.id}/add-exercise`)}
+          >
+            {t.workout.addExercise}
+          </button>
+          <button className="btn btn-secondary" onClick={() => setEditMode(false)}>
+            {t.workout.doneEditing}
+          </button>
         </div>
       ) : null}
 

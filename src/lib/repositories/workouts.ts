@@ -89,6 +89,19 @@ export async function updateWorkoutSessionSchedule(
   if (error) throw new RepositoryError(error.message, error);
 }
 
+/** Soft-delete: sets deleted_at so the session drops out of listClientWorkouts.
+ * Never a hard DELETE — no delete grant exists on workout_sessions by design
+ * (history is preserved; see ARCHITECTURE.md), matching the deleted_at
+ * filter listClientWorkouts already applies. */
+export async function deleteWorkoutSession(sessionId: string) {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase
+    .from("workout_sessions")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", sessionId);
+  if (error) throw new RepositoryError(error.message, error);
+}
+
 export async function completeWorkoutSession(sessionId: string): Promise<WorkoutSession> {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase.rpc("complete_workout_session", {

@@ -10,11 +10,7 @@ import { listClientWorkouts, createWorkoutSession, type ClientWorkoutListItem } 
 import type { Client } from "@/lib/repositories/types";
 import { toFriendlyMessage } from "@/lib/errors";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateBlock";
-
-function formatDateTime(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
+import { formatDateTimeWithWeekday } from "@/lib/dateFormat";
 
 const statusBadge: Record<string, { label: string; cls: string }> = {
   draft: { label: t.workout.draft, cls: "badge-draft" },
@@ -151,7 +147,7 @@ export default function ClientDetailPage() {
           ) : null}
           <div className="muted" style={{ marginTop: 8 }}>
             {t.clients.lastSession}：
-            {lastSession ? formatDateTime(lastSession.started_at) : t.clients.neverTrained}
+            {lastSession ? formatDateTimeWithWeekday(lastSession.started_at) : t.clients.neverTrained}
           </div>
           {client.phone ? <div className="muted">{t.clients.phone}：{client.phone}</div> : null}
           {client.note ? <div className="muted" style={{ marginTop: 8 }}>{client.note}</div> : null}
@@ -191,7 +187,7 @@ export default function ClientDetailPage() {
                   <div className="card">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <div style={{ fontWeight: 600 }}>{formatDateTime(session.started_at)}</div>
+                        <div style={{ fontWeight: 600 }}>{formatDateTimeWithWeekday(session.started_at)}</div>
                         <div className="muted" style={{ marginTop: 4 }}>
                           {t.workout.exercisesCount(session.total_exercises)} ·{" "}
                           {t.workout.setsCount(session.total_sets)}
