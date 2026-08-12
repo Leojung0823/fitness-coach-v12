@@ -10,7 +10,6 @@ import {
 } from "@/lib/repositories/workouts";
 import { removeExercise } from "@/lib/repositories/workoutExercises";
 import { createSet, duplicateSet, updateSet, completeSet, deleteSet } from "@/lib/repositories/workoutSets";
-import { getClient } from "@/lib/repositories/clients";
 import type { WorkoutSessionDetail } from "@/lib/repositories/types";
 import { toFriendlyMessage } from "@/lib/errors";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateBlock";
@@ -25,17 +24,26 @@ function formatElapsed(startedAt: string) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+/** Ticks every second in isolation so the rest of the (potentially large)
+ * exercise/set list doesn't re-render once per second along with it. */
+function ElapsedTimer({ startedAt }: { startedAt: string }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((v) => v + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <>{formatElapsed(startedAt)}</>;
+}
+
 export default function WorkoutRecordingPage() {
   const params = useParams<{ sessionId: string }>();
   const router = useRouter();
   const { organizationId } = useOrg();
 
   const [detail, setDetail] = useState<WorkoutSessionDetail | null | undefined>(undefined);
-  const [clientName, setClientName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone?: "default" | "error" } | null>(null);
   const [completing, setCompleting] = useState(false);
-  const [, setElapsedTick] = useState(0);
 
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -44,10 +52,6 @@ export default function WorkoutRecordingPage() {
     try {
       const data = await getWorkoutDetail(params.sessionId);
       setDetail(data);
-      if (data) {
-        const client = await getClient(data.client_id);
-        setClientName(client?.full_name ?? "");
-      }
     } catch (err) {
       setError(toFriendlyMessage(err));
     }
@@ -56,12 +60,6 @@ export default function WorkoutRecordingPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    if (!detail || detail.status !== "draft") return;
-    const id = setInterval(() => setElapsedTick((v) => v + 1), 1000);
-    return () => clearInterval(id);
-  }, [detail]);
 
   function showToast(message: string, tone: "default" | "error" = "default") {
     setToast({ message, tone });
@@ -255,10 +253,15 @@ export default function WorkoutRecordingPage() {
           ←
         </button>
         <div style={{ flex: 1, overflow: "hidden" }}>
-          <h1 style={{ fontSize: 16 }}>{clientName || t.workout.todaySession}</h1>
+          <h1 style={{ fontSize: 16 }}>{detail.client_name || t.workout.todaySession}</h1>
           <div className="muted" style={{ fontSize: 12 }}>
             {new Date(detail.session_date).toLocaleDateString("zh-TW")}
-            {isDraft ? ` · ${formatElapsed(detail.started_at)}` : ""}
+            {isDraft ? (
+              <>
+                {" · "}
+                <ElapsedTimer startedAt={detail.started_at} />
+              </>
+            ) : null}
           </div>
         </div>
         {!isDraft ? (

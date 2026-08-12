@@ -35,17 +35,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect("/login");
   }
 
-  const { data: organization } = await supabase
-    .from("organizations")
-    .select("name")
-    .eq("id", organizationId)
-    .maybeSingle();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle();
+  const [{ data: organization }, { data: profile }] = await Promise.all([
+    supabase.from("organizations").select("name").eq("id", organizationId).maybeSingle(),
+    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
+  ]);
 
   return (
     <OrgProvider

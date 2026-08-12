@@ -53,6 +53,7 @@ export default function AddExercisePage() {
 
   useEffect(() => {
     let active = true;
+
     async function run() {
       try {
         let data: Exercise[];
@@ -68,13 +69,26 @@ export default function AddExercisePage() {
         if (active) setError(toFriendlyMessage(err));
       }
     }
-    if (selectedMuscleGroup || search.trim() !== "") {
-      run();
-    } else {
+
+    if (!selectedMuscleGroup && search.trim() === "") {
       setResults(null);
+      return;
     }
+
+    // Muscle-group taps are a single deliberate action — run immediately.
+    // Free-text search fires on every keystroke, so debounce it to avoid
+    // spamming a query per character while the coach is still typing.
+    if (selectedMuscleGroup) {
+      run();
+      return () => {
+        active = false;
+      };
+    }
+
+    const timer = setTimeout(run, 250);
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [search, selectedMuscleGroup, organizationId]);
 

@@ -33,26 +33,29 @@ export async function createWorkoutSession(organizationId: string, clientId: str
 export async function getWorkoutDetail(sessionId: string): Promise<WorkoutSessionDetail | null> {
   const supabase = createSupabaseClient();
 
+  // Client name comes along for free via the FK embed — this is the one
+  // query that must land before the rest can start (everything else keys
+  // off session.coach_user_id / sessionId), so the other two run in
+  // parallel afterward instead of stacking into a 4-request waterfall.
   const { data: session, error: sessionError } = await supabase
     .from("workout_sessions")
-    .select("*")
+    .select("*, client:clients(full_name)")
     .eq("id", sessionId)
     .maybeSingle();
   if (sessionError) throw new RepositoryError(sessionError.message, sessionError);
   if (!session) return null;
 
-  const { data: coachProfile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", session.coach_user_id)
-    .maybeSingle();
+  const { client, ...sessionRow } = session as WorkoutSession & { client: { full_name: string } | null };
 
-  const { data: workoutExercises, error: exercisesError } = await supabase
-    .from("workout_exercises")
-    .select("*, exercise:exercises(*), sets:workout_sets(*)")
-    .eq("workout_session_id", sessionId)
-    .is("deleted_at", null)
-    .order("sort_order", { ascending: true });
+  const [{ data: coachProfile }, { data: workoutExercises, error: exercisesError }] = await Promise.all([
+    supabase.from("profiles").select("display_name").eq("id", sessionRow.coach_user_id).maybeSingle(),
+    supabase
+      .from("workout_exercises")
+      .select("*, exercise:exercises(*), sets:workout_sets(*)")
+      .eq("workout_session_id", sessionId)
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true }),
+  ]);
   if (exercisesError) throw new RepositoryError(exercisesError.message, exercisesError);
 
   const withSortedSets = (workoutExercises ?? []).map((we) => ({
@@ -63,8 +66,9 @@ export async function getWorkoutDetail(sessionId: string): Promise<WorkoutSessio
   })) as unknown as WorkoutExerciseWithExercise[];
 
   return {
-    ...(session as WorkoutSession),
+    ...sessionRow,
     coach_display_name: coachProfile?.display_name ?? null,
+    client_name: client?.full_name ?? null,
     workout_exercises: withSortedSets,
   };
 }

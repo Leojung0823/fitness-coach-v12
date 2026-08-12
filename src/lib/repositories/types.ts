@@ -23,6 +23,7 @@ export type WorkoutExerciseWithExercise = WorkoutExercise & {
 
 export type WorkoutSessionDetail = WorkoutSession & {
   coach_display_name: string | null;
+  client_name: string | null;
   workout_exercises: WorkoutExerciseWithExercise[];
 };
 
