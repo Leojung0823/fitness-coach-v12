@@ -503,6 +503,19 @@ textarea.input {
   color: #fff;
 }
 
+.chip-static {
+  min-height: auto;
+  min-width: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: default;
+}
+
 .set-row {
   display: flex;
   align-items: center;

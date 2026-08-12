@@ -14,10 +14,19 @@ import {
   createCustomExercise,
   type RecentExercise,
 } from "@/lib/repositories/exercises";
+import { listExerciseTags } from "@/lib/repositories/exerciseTags";
 import { addExercise } from "@/lib/repositories/workoutExercises";
-import type { Exercise, MuscleGroup, ExerciseCategory, EquipmentType } from "@/lib/repositories/types";
+import type {
+  Exercise,
+  ExerciseWithTags,
+  ExerciseTag,
+  MuscleGroup,
+  ExerciseCategory,
+  EquipmentType,
+} from "@/lib/repositories/types";
 import { toFriendlyMessage } from "@/lib/errors";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateBlock";
+import { TagPickerSheet } from "@/components/TagPickerSheet";
 
 export default function AddExercisePage() {
   const params = useParams<{ sessionId: string }>();
@@ -28,7 +37,9 @@ export default function AddExercisePage() {
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentExercise[]>([]);
-  const [results, setResults] = useState<Exercise[] | null>(null);
+  const [results, setResults] = useState<ExerciseWithTags[] | null>(null);
+  const [allTags, setAllTags] = useState<ExerciseTag[]>([]);
+  const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -36,12 +47,14 @@ export default function AddExercisePage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [groups, recentList] = await Promise.all([
+      const [groups, recentList, tags] = await Promise.all([
         listMuscleGroups(),
         getRecentExercises(organizationId),
+        listExerciseTags(organizationId),
       ]);
       setMuscleGroups(groups);
       setRecent(recentList);
+      setAllTags(tags);
     } catch (err) {
       setError(toFriendlyMessage(err));
     }
@@ -56,7 +69,7 @@ export default function AddExercisePage() {
 
     async function run() {
       try {
-        let data: Exercise[];
+        let data: ExerciseWithTags[];
         if (selectedMuscleGroup) {
           data = await listExercisesByMuscleGroup(organizationId, selectedMuscleGroup);
         } else if (search.trim() !== "") {
@@ -168,7 +181,14 @@ export default function AddExercisePage() {
             ) : null}
             {results
               ? results.map((ex) => (
-                  <ExerciseRow key={ex.id} exercise={ex} onSelect={handleSelect} adding={adding === ex.id} />
+                  <ExerciseRow
+                    key={ex.id}
+                    exercise={ex}
+                    onSelect={handleSelect}
+                    adding={adding === ex.id}
+                    tags={ex.tags}
+                    onEditTags={() => setEditingTagsFor(ex.id)}
+                  />
                 ))
               : null}
           </>
@@ -187,6 +207,34 @@ export default function AddExercisePage() {
           />
         )}
       </div>
+
+      {editingTagsFor
+        ? (() => {
+            const editingExercise = results?.find((ex) => ex.id === editingTagsFor);
+            if (!editingExercise) return null;
+            return (
+              <TagPickerSheet
+                organizationId={organizationId}
+                exerciseId={editingTagsFor}
+                allTags={allTags}
+                appliedTagIds={new Set(editingExercise.tags.map((tg) => tg.id))}
+                onTagsChanged={(nextIds) => {
+                  setResults((prev) =>
+                    prev
+                      ? prev.map((ex) =>
+                          ex.id !== editingTagsFor
+                            ? ex
+                            : { ...ex, tags: allTags.filter((tg) => nextIds.has(tg.id)) },
+                        )
+                      : prev,
+                  );
+                }}
+                onCreateTag={(tag) => setAllTags((prev) => [...prev, tag])}
+                onClose={() => setEditingTagsFor(null)}
+              />
+            );
+          })()
+        : null}
     </div>
   );
 }
@@ -195,26 +243,53 @@ function ExerciseRow({
   exercise,
   onSelect,
   adding,
+  tags,
+  onEditTags,
 }: {
   exercise: Exercise;
   onSelect: (id: string) => void;
   adding: boolean;
+  /** Omitted for the 最近使用 list — tag editing isn't offered there (V1 scope). */
+  tags?: ExerciseTag[];
+  onEditTags?: () => void;
 }) {
   return (
-    <button
-      className="card-link"
-      style={{ width: "100%", textAlign: "left", border: "none", background: "none", padding: 0 }}
-      onClick={() => onSelect(exercise.id)}
-      disabled={adding}
-    >
-      <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="card">
+      <button
+        className="card-link"
+        style={{
+          width: "100%",
+          textAlign: "left",
+          border: "none",
+          background: "none",
+          padding: 0,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+        onClick={() => onSelect(exercise.id)}
+        disabled={adding}
+      >
         <div>
           <div style={{ fontWeight: 600 }}>{exercise.name_zh_tw}</div>
           {exercise.name_en ? <div className="muted">{exercise.name_en}</div> : null}
         </div>
         {adding ? <div className="spinner" style={{ width: 20, height: 20 }} /> : <span className="muted">+</span>}
-      </div>
-    </button>
+      </button>
+
+      {tags ? (
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 8 }}>
+          {tags.map((tag) => (
+            <span key={tag.id} className="chip chip-static">
+              {tag.name}
+            </span>
+          ))}
+          <button className="btn btn-ghost btn-sm" onClick={onEditTags} aria-label={t.exercisePicker.editTags}>
+            🏷️ {t.exercisePicker.editTags}
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

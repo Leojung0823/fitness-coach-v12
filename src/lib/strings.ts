@@ -140,6 +140,10 @@ export const t = {
     equipmentType: "使用器材",
     createAndAdd: "建立並加入課程",
     exerciseNameRequired: "請輸入動作名稱",
+    tags: "標籤",
+    editTags: "編輯標籤",
+    createTag: "新增自訂標籤",
+    newTagPlaceholder: "例如：肌肥大",
   },
 
   quickWeights: [-2.5, 2.5] as const,

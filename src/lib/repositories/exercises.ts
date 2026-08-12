@@ -5,7 +5,25 @@ import {
   type ExerciseCategory,
   type MuscleGroup,
   type EquipmentType,
+  type ExerciseTag,
+  type ExerciseWithTags,
 } from "./types";
+
+const EXERCISE_WITH_TAGS_SELECT = "*, exercise_tag_links(exercise_tags(*))";
+
+type ExerciseRowWithTagLinks = Exercise & {
+  exercise_tag_links: { exercise_tags: ExerciseTag | null }[] | null;
+};
+
+function withFlattenedTags(row: ExerciseRowWithTagLinks): ExerciseWithTags {
+  const { exercise_tag_links, ...exercise } = row;
+  return {
+    ...exercise,
+    tags: (exercise_tag_links ?? [])
+      .map((link) => link.exercise_tags)
+      .filter((tag): tag is ExerciseTag => tag !== null),
+  };
+}
 
 /** ExerciseRepository (PRD §17). */
 
@@ -55,12 +73,12 @@ export async function listVisibleExercises(organizationId: string): Promise<Exer
   return data ?? [];
 }
 
-export async function searchExercises(organizationId: string, term: string): Promise<Exercise[]> {
+export async function searchExercises(organizationId: string, term: string): Promise<ExerciseWithTags[]> {
   const supabase = createSupabaseClient();
   const trimmed = term.trim();
   let query = supabase
     .from("exercises")
-    .select("*")
+    .select(EXERCISE_WITH_TAGS_SELECT)
     .eq("is_active", true)
     .or(`is_system.eq.true,organization_id.eq.${organizationId}`);
 
@@ -70,13 +88,13 @@ export async function searchExercises(organizationId: string, term: string): Pro
 
   const { data, error } = await query.order("name_zh_tw", { ascending: true });
   if (error) throw new RepositoryError(error.message, error);
-  return data ?? [];
+  return ((data ?? []) as unknown as ExerciseRowWithTagLinks[]).map(withFlattenedTags);
 }
 
 export async function listExercisesByMuscleGroup(
   organizationId: string,
   muscleGroupId: string,
-): Promise<Exercise[]> {
+): Promise<ExerciseWithTags[]> {
   const supabase = createSupabaseClient();
 
   // A top-level muscle group (e.g. 腿部) must also match exercises tagged
@@ -93,13 +111,13 @@ export async function listExercisesByMuscleGroup(
 
   const { data, error } = await supabase
     .from("exercises")
-    .select("*")
+    .select(EXERCISE_WITH_TAGS_SELECT)
     .eq("is_active", true)
     .in("primary_muscle_group_id", groupIds)
     .or(`is_system.eq.true,organization_id.eq.${organizationId}`)
     .order("name_zh_tw", { ascending: true });
   if (error) throw new RepositoryError(error.message, error);
-  return data ?? [];
+  return ((data ?? []) as unknown as ExerciseRowWithTagLinks[]).map(withFlattenedTags);
 }
 
 export type RecentExercise = Exercise & { last_used_at: string | null; usage_count: number };

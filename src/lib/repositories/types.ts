@@ -11,6 +11,9 @@ export type ExerciseCategory = Database["public"]["Tables"]["exercise_categories
 export type MuscleGroup = Database["public"]["Tables"]["muscle_groups"]["Row"];
 export type EquipmentType = Database["public"]["Tables"]["equipment_types"]["Row"];
 export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];
+export type ExerciseTag = Database["public"]["Tables"]["exercise_tags"]["Row"];
+
+export type ExerciseWithTags = Exercise & { tags: ExerciseTag[] };
 
 export type WorkoutSession = Database["public"]["Tables"]["workout_sessions"]["Row"];
 export type WorkoutExercise = Database["public"]["Tables"]["workout_exercises"]["Row"];
