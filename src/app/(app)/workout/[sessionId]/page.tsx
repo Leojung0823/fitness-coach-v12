@@ -19,11 +19,18 @@ import { SetRow } from "@/components/SetRow";
 import { Toast } from "@/components/Toast";
 import { formatDateWithWeekday, weekdayLabel } from "@/lib/dateFormat";
 
+/** MM:SS normally; rolls over to H:MM:SS past an hour so a session left
+ * open for a long time (or just forgotten open) still reads as a duration
+ * instead of a three-digit minute count like "408:55". */
 function formatElapsed(startedAt: string) {
   const ms = Date.now() - new Date(startedAt).getTime();
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
@@ -494,6 +501,17 @@ export default function WorkoutRecordingPage() {
             </div>
           ))
         )}
+
+        {isDraft ? (
+          <button
+            className="btn btn-danger btn-sm"
+            style={{ marginTop: 16 }}
+            onClick={handleDeleteSession}
+            disabled={deleting}
+          >
+            {deleting ? t.common.loading : t.workout.deleteSessionAction}
+          </button>
+        ) : null}
       </div>
 
       {isDraft ? (

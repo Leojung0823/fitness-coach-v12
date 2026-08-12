@@ -112,6 +112,7 @@ export const t = {
     deleteExercise: "移除動作",
     deleteExerciseConfirm: "確定要移除這個動作嗎？已記錄的組數也會一併移除。",
     deleteSessionConfirm: "確定要刪除這堂課程紀錄嗎？此動作無法復原。",
+    deleteSessionAction: "刪除這堂課程",
     doneEditing: "完成編輯",
     savingIndicator: "已自動儲存",
     saveFailed: "儲存失敗，請檢查網路後重試。",
