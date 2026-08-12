@@ -441,7 +441,7 @@ export default function WorkoutRecordingPage() {
       <div className="page-body">
         {error ? <div className="banner banner-error">{error}</div> : null}
 
-        {isDraft ? <Stopwatch /> : null}
+        <Stopwatch />
 
         {detail.workout_exercises.length === 0 ? (
           <EmptyState icon="🏋️" message={t.workout.noExercisesYet} />
