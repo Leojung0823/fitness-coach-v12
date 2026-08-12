@@ -186,6 +186,36 @@ textarea {
   border-radius: var(--radius-sm);
 }
 
+.btn-lg {
+  min-height: 64px;
+  padding: 14px 20px;
+  font-size: 20px;
+}
+
+.stopwatch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.stopwatch-display {
+  font-size: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.stopwatch-controls {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.stopwatch-controls .btn {
+  flex: 1;
+}
+
 /* Form ------------------------------------------------------------------ */
 
 .field {

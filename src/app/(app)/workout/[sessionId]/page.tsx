@@ -38,6 +38,47 @@ function ElapsedTimer({ startedAt }: { startedAt: string }) {
   return <>{formatElapsed(startedAt)}</>;
 }
 
+/** Manual start/stop stopwatch — independent of the session's own elapsed
+ * timer (that one tracks the whole session; this is for whatever the coach
+ * wants to time in the moment, e.g. a rest interval). Local UI state only,
+ * not persisted — isolated so its 1s tick doesn't re-render the page. */
+function Stopwatch() {
+  const [running, setRunning] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+
+  return (
+    <div className="card stopwatch-card">
+      <div className="stopwatch-display">
+        {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+      </div>
+      <div className="stopwatch-controls">
+        <button
+          className="btn btn-secondary btn-lg"
+          onClick={() => {
+            setElapsedSeconds(0);
+            setRunning(true);
+          }}
+          disabled={running}
+        >
+          {t.workout.stopwatchStart}
+        </button>
+        <button className="btn btn-secondary btn-lg" onClick={() => setRunning(false)} disabled={!running}>
+          {t.workout.stopwatchStop}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function toDateInputValue(iso: string) {
   const d = new Date(iso);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -367,6 +408,8 @@ export default function WorkoutRecordingPage() {
 
       <div className="page-body">
         {error ? <div className="banner banner-error">{error}</div> : null}
+
+        {isDraft ? <Stopwatch /> : null}
 
         {detail.workout_exercises.length === 0 ? (
           <EmptyState icon="🏋️" message={t.workout.noExercisesYet} />
