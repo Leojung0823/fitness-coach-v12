@@ -334,7 +334,7 @@ export default function WorkoutRecordingPage() {
           >
             {t.workout.addExercise}
           </button>
-          <button className="btn btn-primary" onClick={handleComplete} disabled={completing}>
+          <button className="btn btn-secondary" onClick={handleComplete} disabled={completing}>
             {completing ? t.common.loading : t.workout.completeSession}
           </button>
         </div>

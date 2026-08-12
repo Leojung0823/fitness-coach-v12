@@ -37,14 +37,6 @@ export function SetRow({
     >
       <span className="set-label">{t.workout.setNumber(set.set_number)}</span>
 
-      <button
-        className={`set-complete-btn ${locked ? "done" : ""}`}
-        aria-label={locked ? t.workout.markIncomplete : t.workout.markComplete}
-        onClick={() => onToggleComplete(!locked)}
-      >
-        {locked ? "✓" : ""}
-      </button>
-
       <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, flexWrap: "wrap" }}>
         <div className="stepper">
           <button
@@ -101,6 +93,19 @@ export function SetRow({
             +
           </button>
         </div>
+      </div>
+
+      <div className="set-complete-group">
+        <span className="set-complete-label">
+          {locked ? t.workout.markIncomplete : t.workout.markComplete}
+        </span>
+        <button
+          className={`set-complete-btn ${locked ? "done" : ""}`}
+          aria-label={locked ? t.workout.markIncomplete : t.workout.markComplete}
+          onClick={() => onToggleComplete(!locked)}
+        >
+          {locked ? "✓" : ""}
+        </button>
       </div>
 
       {!locked ? (
