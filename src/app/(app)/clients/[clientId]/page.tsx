@@ -6,11 +6,16 @@ import Link from "next/link";
 import { useOrg } from "@/lib/OrgContext";
 import { t } from "@/lib/strings";
 import { getClient, archiveClient } from "@/lib/repositories/clients";
-import { listClientWorkouts, createWorkoutSession, type ClientWorkoutListItem } from "@/lib/repositories/workouts";
-import type { Client } from "@/lib/repositories/types";
+import {
+  listClientWorkouts,
+  createWorkoutSession,
+  getClientExercisePerformance,
+  type ClientWorkoutListItem,
+} from "@/lib/repositories/workouts";
+import type { Client, ClientExercisePerformance } from "@/lib/repositories/types";
 import { toFriendlyMessage } from "@/lib/errors";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateBlock";
-import { formatDateTimeWithWeekday } from "@/lib/dateFormat";
+import { formatDateTimeWithWeekday, formatDateWithWeekday } from "@/lib/dateFormat";
 
 const statusBadge: Record<string, { label: string; cls: string }> = {
   draft: { label: t.workout.draft, cls: "badge-draft" },
@@ -27,6 +32,9 @@ export default function ClientDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [activeTab, setActiveTab] = useState<"history" | "performance">("history");
+  const [performance, setPerformance] = useState<ClientExercisePerformance[] | null>(null);
+  const [performanceError, setPerformanceError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -45,6 +53,23 @@ export default function ClientDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Lazy-loaded — most visits only look at 歷史課程, no need to pay for
+  // the performance query on every client detail page load.
+  useEffect(() => {
+    if (activeTab !== "performance" || performance !== null) return;
+    let active = true;
+    getClientExercisePerformance(params.clientId)
+      .then((data) => {
+        if (active) setPerformance(data);
+      })
+      .catch((err) => {
+        if (active) setPerformanceError(toFriendlyMessage(err));
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeTab, performance, params.clientId]);
 
   async function handleStartSession() {
     setStarting(true);
@@ -171,35 +196,91 @@ export default function ClientDetailPage() {
           {client.status === "archived" ? t.clients.unarchiveClient : t.clients.archiveClient}
         </button>
 
-        <div className="section-title">{t.clients.historyTitle}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button
+            className={`radio-chip ${activeTab === "history" ? "selected" : ""}`}
+            style={{ flex: 1 }}
+            onClick={() => setActiveTab("history")}
+          >
+            {t.clients.historyTitle}
+          </button>
+          <button
+            className={`radio-chip ${activeTab === "performance" ? "selected" : ""}`}
+            style={{ flex: 1 }}
+            onClick={() => setActiveTab("performance")}
+          >
+            {t.clients.performanceTitle}
+          </button>
+        </div>
 
-        {sessions === null ? <LoadingState /> : null}
+        {activeTab === "history" ? (
+          <>
+            {sessions === null ? <LoadingState /> : null}
 
-        {sessions && sessions.length === 0 ? (
-          <EmptyState icon="📋" message={t.clients.noHistory} />
-        ) : null}
+            {sessions && sessions.length === 0 ? (
+              <EmptyState icon="📋" message={t.clients.noHistory} />
+            ) : null}
 
-        {sessions && sessions.length > 0
-          ? sessions.map((session) => {
-              const badge = statusBadge[session.status] ?? statusBadge.draft;
-              return (
-                <Link key={session.id} href={`/workout/${session.id}`} className="card-link">
-                  <div className="card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{formatDateTimeWithWeekday(session.started_at)}</div>
-                        <div className="muted" style={{ marginTop: 4 }}>
-                          {t.workout.exercisesCount(session.total_exercises)} ·{" "}
-                          {t.workout.setsCount(session.total_sets)}
+            {sessions && sessions.length > 0
+              ? sessions.map((session) => {
+                  const badge = statusBadge[session.status] ?? statusBadge.draft;
+                  return (
+                    <Link key={session.id} href={`/workout/${session.id}`} className="card-link">
+                      <div className="card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{formatDateTimeWithWeekday(session.started_at)}</div>
+                            <div className="muted" style={{ marginTop: 4 }}>
+                              {t.workout.exercisesCount(session.total_exercises)} ·{" "}
+                              {t.workout.setsCount(session.total_sets)}
+                            </div>
+                          </div>
+                          <span className={`badge ${badge.cls}`}>{badge.label}</span>
                         </div>
                       </div>
-                      <span className={`badge ${badge.cls}`}>{badge.label}</span>
+                    </Link>
+                  );
+                })
+              : null}
+          </>
+        ) : (
+          <>
+            {performanceError ? <div className="banner banner-error" style={{ marginTop: 12 }}>{performanceError}</div> : null}
+
+            {performance === null && !performanceError ? <LoadingState /> : null}
+
+            {performance && performance.length === 0 ? (
+              <EmptyState icon="📈" message={t.clients.noPerformance} />
+            ) : null}
+
+            {performance && performance.length > 0
+              ? performance.map((p) => (
+                  <Link key={p.exercise_id} href={`/workout/${p.last_session_id}`} className="card-link">
+                    <div className="card">
+                      <div style={{ fontWeight: 700 }}>{p.exercise_name_zh_tw}</div>
+                      {p.exercise_name_en ? (
+                        <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                          {p.exercise_name_en}
+                        </div>
+                      ) : null}
+                      <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                        {t.clients.performanceLastDate}：{formatDateWithWeekday(p.last_session_date)}
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                        {p.sets.map((s) => (
+                          <span key={s.set_number} className="chip-static">
+                            {s.weight_value}
+                            {t.common.kg} × {s.reps ?? 0}
+                            {t.common.reps}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              );
-            })
-          : null}
+                  </Link>
+                ))
+              : null}
+          </>
+        )}
       </div>
     </div>
   );

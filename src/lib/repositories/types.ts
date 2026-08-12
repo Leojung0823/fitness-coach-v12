@@ -30,6 +30,25 @@ export type WorkoutSessionDetail = WorkoutSession & {
   workout_exercises: WorkoutExerciseWithExercise[];
 };
 
+export type ClientExercisePerformanceSet = {
+  set_number: number;
+  weight_value: number;
+  weight_unit: string;
+  reps: number | null;
+  is_completed: boolean;
+};
+
+export type ClientExercisePerformance = {
+  exercise_id: string;
+  exercise_name_zh_tw: string;
+  exercise_name_en: string | null;
+  last_session_id: string;
+  last_session_date: string;
+  last_started_at: string;
+  last_session_status: string;
+  sets: ClientExercisePerformanceSet[];
+};
+
 export class RepositoryError extends Error {
   constructor(
     message: string,

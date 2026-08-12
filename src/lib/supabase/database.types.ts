@@ -846,6 +846,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_client_exercise_performance: {
+        Args: { target_client_id: string }
+        Returns: {
+          exercise_id: string
+          exercise_name_en: string
+          exercise_name_zh_tw: string
+          last_session_date: string
+          last_session_id: string
+          last_session_status: string
+          last_started_at: string
+          sets: Json
+        }[]
+      }
       record_exercise_usage: {
         Args: { target_exercise_id: string; target_organization_id: string }
         Returns: {

@@ -86,6 +86,9 @@ export const t = {
     historyTitle: "歷史課程",
     noHistory: "尚無訓練紀錄。",
     viewHistory: "查看歷史課程",
+    performanceTitle: "動作表現",
+    noPerformance: "尚無動作紀錄，完成第一堂課程後會顯示在這裡。",
+    performanceLastDate: "最近一次",
   },
 
   workout: {

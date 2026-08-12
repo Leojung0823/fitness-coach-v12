@@ -4,6 +4,8 @@ import {
   type WorkoutSession,
   type WorkoutSessionDetail,
   type WorkoutExerciseWithExercise,
+  type ClientExercisePerformance,
+  type ClientExercisePerformanceSet,
 } from "./types";
 
 /** WorkoutRepository (PRD §17). */
@@ -127,4 +129,19 @@ export async function listClientWorkouts(clientId: string): Promise<ClientWorkou
     .order("started_at", { ascending: false });
   if (error) throw new RepositoryError(error.message, error);
   return data ?? [];
+}
+
+/** "動作表現": for every exercise this client has ever done, only the most
+ * recent occurrence's sets (not full history) — most recently trained
+ * exercise first. */
+export async function getClientExercisePerformance(clientId: string): Promise<ClientExercisePerformance[]> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase.rpc("get_client_exercise_performance", {
+    target_client_id: clientId,
+  });
+  if (error) throw new RepositoryError(error.message, error);
+  return (data ?? []).map((row) => ({
+    ...row,
+    sets: (row.sets as unknown as ClientExercisePerformanceSet[] | null) ?? [],
+  }));
 }
