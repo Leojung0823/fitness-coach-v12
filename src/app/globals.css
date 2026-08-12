@@ -468,6 +468,12 @@ textarea.input {
   background: var(--primary-soft);
 }
 
+.stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--surface);
+}
+
 .stepper-value {
   min-width: 64px;
   text-align: center;
@@ -476,6 +482,10 @@ textarea.input {
   background: transparent;
   border: none;
   color: var(--text);
+}
+
+.stepper-value:disabled {
+  opacity: 0.4;
 }
 
 .chip-row {
@@ -501,6 +511,11 @@ textarea.input {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chip-static {
@@ -550,7 +565,7 @@ textarea.input {
   color: var(--text-tertiary);
 }
 
-.set-complete-group:has(.set-complete-btn:not(.done)) .set-complete-label {
+.set-complete-group:has(.set-complete-btn:not(.done):not(:disabled)) .set-complete-label {
   color: var(--primary);
 }
 
@@ -573,6 +588,15 @@ textarea.input {
   background: var(--success);
   border-color: var(--success);
   color: #fff;
+}
+
+.set-complete-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.set-complete-btn.done:disabled {
+  opacity: 0.6;
 }
 
 .set-delete-btn {
