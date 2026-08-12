@@ -186,12 +186,8 @@ export default function ClientDetailPage() {
         {sessions && sessions.length > 0
           ? sessions.map((session) => {
               const badge = statusBadge[session.status] ?? statusBadge.draft;
-              const href =
-                session.status === "draft"
-                  ? `/workout/${session.id}`
-                  : `/clients/${client.id}/history/${session.id}`;
               return (
-                <Link key={session.id} href={href} className="card-link">
+                <Link key={session.id} href={`/workout/${session.id}`} className="card-link">
                   <div className="card">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>

@@ -92,6 +92,7 @@ export const t = {
     todaySession: "今天課程",
     sessionDate: "課程日期",
     sessionTime: "課程時間",
+    sessionDuration: "已進行時長",
     addExercise: "新增動作",
     completeSession: "完成課程",
     noExercisesYet: "點擊下方按鈕新增第一個訓練動作。",

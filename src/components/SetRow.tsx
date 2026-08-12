@@ -8,12 +8,15 @@ import { QuickRepsSheet } from "./QuickRepsSheet";
 
 export function SetRow({
   set,
+  disabled = false,
   onChangeWeight,
   onChangeReps,
   onToggleComplete,
   onDelete,
 }: {
   set: WorkoutSet;
+  /** Whole session isn't editable (e.g. cancelled) — distinct from an individual completed set. */
+  disabled?: boolean;
   onChangeWeight: (value: number) => void;
   onChangeReps: (value: number) => void;
   onToggleComplete: (completed: boolean) => void;
@@ -22,7 +25,7 @@ export function SetRow({
   const [weightPickerOpen, setWeightPickerOpen] = useState(false);
   const [repsPickerOpen, setRepsPickerOpen] = useState(false);
   const reps = set.reps ?? 0;
-  const locked = set.is_completed;
+  const locked = disabled || set.is_completed;
 
   return (
     <div
@@ -97,14 +100,15 @@ export function SetRow({
 
       <div className="set-complete-group">
         <span className="set-complete-label">
-          {locked ? t.workout.markIncomplete : t.workout.markComplete}
+          {set.is_completed ? t.workout.markIncomplete : t.workout.markComplete}
         </span>
         <button
-          className={`set-complete-btn ${locked ? "done" : ""}`}
-          aria-label={locked ? t.workout.markIncomplete : t.workout.markComplete}
-          onClick={() => onToggleComplete(!locked)}
+          className={`set-complete-btn ${set.is_completed ? "done" : ""}`}
+          aria-label={set.is_completed ? t.workout.markIncomplete : t.workout.markComplete}
+          onClick={() => onToggleComplete(!set.is_completed)}
+          disabled={disabled}
         >
-          {locked ? "✓" : ""}
+          {set.is_completed ? "✓" : ""}
         </button>
       </div>
 

@@ -275,6 +275,11 @@ export default function WorkoutRecordingPage() {
   }
 
   const isDraft = detail.status === "draft";
+  // Completed sessions can be corrected by the coach after the fact
+  // (weight/reps typos, a forgotten set); only a cancelled session stays
+  // locked. Date/time rescheduling still stays draft-only below — that's
+  // a different concern from fixing a completed session's recorded content.
+  const editable = detail.status !== "cancelled";
 
   return (
     <div className="page">
@@ -288,6 +293,9 @@ export default function WorkoutRecordingPage() {
         </button>
         <div style={{ flex: 1, overflow: "hidden" }}>
           <h1 style={{ fontSize: 16 }}>{detail.client_name || t.workout.todaySession}</h1>
+          <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+            {t.workout.sessionTime}
+          </div>
           {isDraft ? (
             <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
               <input
@@ -306,16 +314,22 @@ export default function WorkoutRecordingPage() {
               />
             </div>
           ) : (
-            <div className="muted" style={{ fontSize: 12 }}>
-              {new Date(detail.session_date).toLocaleDateString("zh-TW")}
+            <div style={{ fontSize: 13, marginTop: 2 }}>
+              {new Date(detail.session_date).toLocaleDateString("zh-TW")}{" "}
+              {toTimeInputValue(detail.started_at)}
             </div>
           )}
-          {isDraft && isToday(detail.session_date) ? (
-            <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+        </div>
+        {isDraft && isToday(detail.session_date) ? (
+          <div style={{ textAlign: "right", flexShrink: 0, marginRight: 8 }}>
+            <div className="muted" style={{ fontSize: 11 }}>
+              {t.workout.sessionDuration}
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>
               <ElapsedTimer startedAt={detail.started_at} />
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         {!isDraft ? (
           <span className={`badge ${detail.status === "completed" ? "badge-completed" : "badge-cancelled"}`}>
             {detail.status === "completed" ? t.workout.completed : t.workout.cancelled}
@@ -340,7 +354,7 @@ export default function WorkoutRecordingPage() {
                     </div>
                   ) : null}
                 </div>
-                {isDraft ? (
+                {editable ? (
                   <button
                     className="icon-btn"
                     aria-label={t.workout.deleteExercise}
@@ -356,15 +370,16 @@ export default function WorkoutRecordingPage() {
                   <SetRow
                     key={s.id}
                     set={s}
-                    onChangeWeight={(v) => isDraft && handleChangeWeight(we.id, s.id, v)}
-                    onChangeReps={(v) => isDraft && handleChangeReps(we.id, s.id, v)}
-                    onToggleComplete={(c) => isDraft && handleToggleComplete(we.id, s.id, c)}
-                    onDelete={() => isDraft && handleDeleteSet(we.id, s.id)}
+                    disabled={!editable}
+                    onChangeWeight={(v) => editable && handleChangeWeight(we.id, s.id, v)}
+                    onChangeReps={(v) => editable && handleChangeReps(we.id, s.id, v)}
+                    onToggleComplete={(c) => editable && handleToggleComplete(we.id, s.id, c)}
+                    onDelete={() => editable && handleDeleteSet(we.id, s.id)}
                   />
                 ))}
               </div>
 
-              {isDraft ? (
+              {editable ? (
                 <button
                   className="btn btn-secondary btn-sm"
                   style={{ marginTop: 10 }}
@@ -378,7 +393,7 @@ export default function WorkoutRecordingPage() {
         )}
       </div>
 
-      {isDraft ? (
+      {editable ? (
         <div className="bottom-bar">
           <button
             className="btn btn-secondary"
@@ -386,9 +401,11 @@ export default function WorkoutRecordingPage() {
           >
             {t.workout.addExercise}
           </button>
-          <button className="btn btn-secondary" onClick={handleComplete} disabled={completing}>
-            {completing ? t.common.loading : t.workout.completeSession}
-          </button>
+          {isDraft ? (
+            <button className="btn btn-secondary" onClick={handleComplete} disabled={completing}>
+              {completing ? t.common.loading : t.workout.completeSession}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
