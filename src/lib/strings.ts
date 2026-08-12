@@ -81,7 +81,7 @@ export const t = {
     unarchiveClient: "取消封存",
     archiveConfirm: "封存後，此學員將從預設列表隱藏，訓練紀錄仍會保留。確定要封存嗎？",
     fullNameRequired: "請輸入姓名",
-    startTodaySession: "開始今天課程",
+    startTodaySession: "安排課程",
     clientDetailTitle: "學員詳情",
     historyTitle: "歷史課程",
     noHistory: "尚無訓練紀錄。",
@@ -91,6 +91,7 @@ export const t = {
   workout: {
     todaySession: "今天課程",
     sessionDate: "課程日期",
+    sessionTime: "課程時間",
     addExercise: "新增動作",
     completeSession: "完成課程",
     noExercisesYet: "點擊下方按鈕新增第一個訓練動作。",

@@ -232,6 +232,13 @@ textarea.input {
   resize: vertical;
 }
 
+.input-sm {
+  width: auto;
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
 .field-error {
   color: var(--danger);
   font-size: 13px;

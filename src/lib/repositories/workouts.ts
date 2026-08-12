@@ -79,6 +79,16 @@ export async function updateWorkoutSessionNote(sessionId: string, note: string) 
   if (error) throw new RepositoryError(error.message, error);
 }
 
+/** Reschedule a draft session's calendar date and/or start time (PRD §7.3 — a session still has no Appointment concept, this only edits when the coach records it as having happened). */
+export async function updateWorkoutSessionSchedule(
+  sessionId: string,
+  fields: { session_date: string; started_at: string },
+) {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase.from("workout_sessions").update(fields).eq("id", sessionId);
+  if (error) throw new RepositoryError(error.message, error);
+}
+
 export async function completeWorkoutSession(sessionId: string): Promise<WorkoutSession> {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase.rpc("complete_workout_session", {

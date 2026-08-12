@@ -7,6 +7,7 @@ import { t } from "@/lib/strings";
 import {
   getWorkoutDetail,
   completeWorkoutSession,
+  updateWorkoutSessionSchedule,
 } from "@/lib/repositories/workouts";
 import { removeExercise } from "@/lib/repositories/workoutExercises";
 import { createSet, duplicateSet, updateSet, completeSet, deleteSet } from "@/lib/repositories/workoutSets";
@@ -33,6 +34,20 @@ function ElapsedTimer({ startedAt }: { startedAt: string }) {
     return () => clearInterval(id);
   }, []);
   return <>{formatElapsed(startedAt)}</>;
+}
+
+function toDateInputValue(iso: string) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function toTimeInputValue(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function isToday(dateInputValue: string) {
+  return dateInputValue === toDateInputValue(new Date().toISOString());
 }
 
 export default function WorkoutRecordingPage() {
@@ -63,6 +78,25 @@ export default function WorkoutRecordingPage() {
 
   function showToast(message: string, tone: "default" | "error" = "default") {
     setToast({ message, tone });
+  }
+
+  async function handleChangeSchedule(nextDate: string, nextTime: string) {
+    if (!detail) return;
+    const [hours, minutes] = nextTime.split(":").map(Number);
+    const startedAt = new Date(`${nextDate}T00:00:00`);
+    startedAt.setHours(hours, minutes, 0, 0);
+
+    const previous = detail;
+    setDetail({ ...detail, session_date: nextDate, started_at: startedAt.toISOString() });
+    try {
+      await updateWorkoutSessionSchedule(detail.id, {
+        session_date: nextDate,
+        started_at: startedAt.toISOString(),
+      });
+    } catch (err) {
+      showToast(toFriendlyMessage(err), "error");
+      setDetail(previous);
+    }
   }
 
   function persistSetField(setId: string, patch: { weight_value?: number; reps?: number }) {
@@ -254,15 +288,33 @@ export default function WorkoutRecordingPage() {
         </button>
         <div style={{ flex: 1, overflow: "hidden" }}>
           <h1 style={{ fontSize: 16 }}>{detail.client_name || t.workout.todaySession}</h1>
-          <div className="muted" style={{ fontSize: 12 }}>
-            {new Date(detail.session_date).toLocaleDateString("zh-TW")}
-            {isDraft ? (
-              <>
-                {" · "}
-                <ElapsedTimer startedAt={detail.started_at} />
-              </>
-            ) : null}
-          </div>
+          {isDraft ? (
+            <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+              <input
+                type="date"
+                className="input input-sm"
+                aria-label={t.workout.sessionDate}
+                value={detail.session_date}
+                onChange={(e) => handleChangeSchedule(e.target.value, toTimeInputValue(detail.started_at))}
+              />
+              <input
+                type="time"
+                className="input input-sm"
+                aria-label={t.workout.sessionTime}
+                value={toTimeInputValue(detail.started_at)}
+                onChange={(e) => handleChangeSchedule(detail.session_date, e.target.value)}
+              />
+            </div>
+          ) : (
+            <div className="muted" style={{ fontSize: 12 }}>
+              {new Date(detail.session_date).toLocaleDateString("zh-TW")}
+            </div>
+          )}
+          {isDraft && isToday(detail.session_date) ? (
+            <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+              <ElapsedTimer startedAt={detail.started_at} />
+            </div>
+          ) : null}
         </div>
         {!isDraft ? (
           <span className={`badge ${detail.status === "completed" ? "badge-completed" : "badge-cancelled"}`}>
