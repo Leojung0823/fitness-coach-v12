@@ -127,7 +127,7 @@ export const t = {
 
   exercisePicker: {
     title: "選擇訓練動作",
-    searchPlaceholder: "搜尋動作名稱",
+    searchPlaceholder: "搜尋動作名稱、分類、肌群、器材或標籤",
     recentUsed: "最近使用",
     byMuscleGroup: "依肌群瀏覽",
     allMuscleGroups: "全部",

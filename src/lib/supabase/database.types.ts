@@ -865,6 +865,27 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      search_exercises: {
+        Args: { target_organization_id: string; term: string }
+        Returns: {
+          category_id: string
+          created_at: string
+          created_by: string
+          default_unit: string
+          deleted_at: string
+          equipment_type_id: string
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name_en: string
+          name_zh_tw: string
+          organization_id: string
+          primary_muscle_group_id: string
+          tags: Json
+          tracking_type: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

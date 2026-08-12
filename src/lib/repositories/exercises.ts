@@ -73,22 +73,21 @@ export async function listVisibleExercises(organizationId: string): Promise<Exer
   return data ?? [];
 }
 
+/** Matches name, category, muscle group, equipment, and tags — everything
+ * a coach might think of as "this exercise's tags" (PostgREST can't OR
+ * across several joined tables in one request, so this calls the
+ * search_exercises SQL function instead). */
 export async function searchExercises(organizationId: string, term: string): Promise<ExerciseWithTags[]> {
   const supabase = createSupabaseClient();
-  const trimmed = term.trim();
-  let query = supabase
-    .from("exercises")
-    .select(EXERCISE_WITH_TAGS_SELECT)
-    .eq("is_active", true)
-    .or(`is_system.eq.true,organization_id.eq.${organizationId}`);
-
-  if (trimmed !== "") {
-    query = query.or(`name_zh_tw.ilike.%${trimmed}%,name_en.ilike.%${trimmed}%`);
-  }
-
-  const { data, error } = await query.order("name_zh_tw", { ascending: true });
+  const { data, error } = await supabase.rpc("search_exercises", {
+    target_organization_id: organizationId,
+    term: term.trim(),
+  });
   if (error) throw new RepositoryError(error.message, error);
-  return ((data ?? []) as unknown as ExerciseRowWithTagLinks[]).map(withFlattenedTags);
+  return (data ?? []).map((row) => ({
+    ...row,
+    tags: (row.tags as unknown as ExerciseTag[] | null) ?? [],
+  }));
 }
 
 export async function listExercisesByMuscleGroup(
