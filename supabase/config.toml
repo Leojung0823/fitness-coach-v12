@@ -156,11 +156,24 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "https://coach-note-rho.vercel.app"
+# Local development only. This file configures `npx supabase start`, never the
+# hosted project -- pointing it at the deployed site sent every local password
+# reset mail to production.
+site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://coach-note-rho.vercel.app", "http://127.0.0.1:3000", "http://192.168.0.107:3000"]
+# A bare origin matches that exact URL and nothing under it, so a link that
+# carries a path (every mailed link now goes to /auth/callback) would be
+# rejected and silently replaced by site_url. The `/**` wildcard is what makes
+# the path allowed. The hosted project needs the same entry in its dashboard
+# Redirect URLs -- see README "信件連結設定".
+additional_redirect_urls = [
+  "http://localhost:3000/**",
+  "http://127.0.0.1:3000/**",
+  "http://192.168.0.107:3000/**",
+  "https://coach-note-rho.vercel.app/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -242,6 +255,15 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# The recovery mail is built from .TokenHash rather than the default
+# .ConfirmationURL: a PKCE code can only be exchanged in the browser that asked
+# for the reset, so the default template silently fails when the mail is opened
+# on another device. The hosted project needs the same template pasted into its
+# dashboard -- see README "信件連結設定".
+[auth.email.template.recovery]
+subject = "重設您的 Coach Note 密碼"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

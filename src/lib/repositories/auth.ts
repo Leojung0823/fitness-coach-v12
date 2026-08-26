@@ -28,8 +28,13 @@ export async function signOut() {
 
 export async function resetPassword(email: string) {
   const supabase = createClient();
+  // Sent to /auth/callback rather than straight to /reset-password: the link
+  // carries either a PKCE code or a token hash, and both have to be turned
+  // into a session on the server before the form is worth showing.
   const redirectTo =
-    typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
+    typeof window !== "undefined"
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`
+      : undefined;
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) throw new RepositoryError(error.message, error);
 }

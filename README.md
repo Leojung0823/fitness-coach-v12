@@ -93,6 +93,35 @@ Next.js 開發伺服器預設會監聽所有網路介面，所以同一個 Wi-Fi
 
 這只是本機區網測試，不是公開部署 —— 離開這個 Wi-Fi、或電腦上的 `npm run dev` / `npx supabase start` 一停掉，手機就連不上了。
 
+## 信件連結設定（hosted 專案必做）
+
+`@supabase/ssr` 強制使用 PKCE，而 PKCE 的 code verifier 只存在**發出請求的那個瀏覽器**。用預設信件範本時，重設密碼連結帶回來的是一個 PKCE code，所以「在電腦按忘記密碼、用手機收信」一定失敗——而且是在使用者填完新密碼、按下儲存之後才失敗。
+
+本機開發已經在 `supabase/config.toml` 設好，hosted 專案要在 Dashboard 手動做兩件事：
+
+**1. Authentication → URL Configuration → Redirect URLs**
+
+```
+https://coach-note-rho.vercel.app/**
+```
+
+必須是 `/**` 結尾。只寫網域（沒有萬用字元）代表「只允許這個網址本身」，任何帶路徑的 redirect 都會被拒絕，然後 **靜默地** 換成 Site URL——使用者會被丟到首頁再被導去登入頁，看起來像連結壞掉。
+
+**2. Authentication → Email Templates → Reset Password**
+
+把 `supabase/templates/recovery.html` 的內容貼進去。關鍵是連結要用 `{{ .TokenHash }}`：
+
+```html
+<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
+  設定新密碼
+</a>
+```
+
+token hash 把驗證所需的東西全部放在連結裡，因此在任何裝置都能完成。程式端 `/auth/callback` 兩種形式都收，所以在範本改好之前也不會壞掉，只是換裝置時會顯示「連結無效」而不是成功。
+
+> **另外請確認 Authentication → Providers → Email 的 Confirm email 設定。**
+> 目前 hosted 專案是 `mailer_autoconfirm: true`（信箱驗證關閉），代表任何人可以用**任何一個不屬於自己的 Email** 註冊並立即取得帳號與新組織。開啟驗證之前要先完成上面兩項，否則確認信的連結會遇到同一個問題。
+
 ## 資料庫驗證
 
 每個 Organization-scoped 資料表都必須通過 RLS 跨組織隔離驗證（`ARCHITECTURE.md` §7 的硬性規定）。驗證腳本包在一個交易裡、最後自動 rollback，可以重複執行不留垃圾資料：

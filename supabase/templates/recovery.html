@@ -1,0 +1,19 @@
+<h2>重設 Coach Note 密碼</h2>
+
+<p>我們收到重設密碼的請求。點下面的連結設定新密碼：</p>
+
+<p>
+  <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
+    設定新密碼
+  </a>
+</p>
+
+<p>連結一小時內有效，而且只能使用一次。如果不是你本人申請的，忽略這封信即可。</p>
+
+<!--
+  Deliberately built from `.TokenHash` instead of the default
+  `.ConfirmationURL`. The default sends a PKCE code, and a PKCE code can only
+  be exchanged in the browser that asked for the reset -- so "request it on the
+  laptop, open the mail on the phone" silently fails. A token hash carries the
+  whole secret in the link, so /auth/callback can verify it on any device.
+-->

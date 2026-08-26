@@ -14,6 +14,9 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // /auth/callback sends people here when a mailed link cannot be turned into
+  // a session, so the reason is visible on the page they land on.
+  const linkInvalid = searchParams.get("error") === "link_invalid";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,6 +41,7 @@ function LoginForm() {
           <p>{t.tagline}</p>
         </div>
 
+        {linkInvalid ? <div className="banner banner-error">{t.auth.resetLinkInvalid}</div> : null}
         {error ? <div className="banner banner-error">{error}</div> : null}
 
         <form onSubmit={handleSubmit}>

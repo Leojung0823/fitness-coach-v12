@@ -47,6 +47,11 @@ export const t = {
     signupSuccessCheckEmail: "註冊成功，請至信箱完成驗證後登入。",
     passwordMismatch: "兩次輸入的密碼不一致。",
     settingUpWorkspace: "正在建立您的教練工作空間…",
+    checkingResetLink: "正在確認連結…",
+    resetLinkInvalid: "這個重設連結無效或已經過期。",
+    resetLinkInvalidHint:
+      "重設連結只能使用一次，而且必須在申請的同一個瀏覽器開啟。請重新申請一次，並在收到信的同一台裝置上點開連結。",
+    requestNewResetLink: "重新申請重設連結",
   },
 
   clients: {
