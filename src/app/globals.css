@@ -714,3 +714,350 @@ textarea.input {
   background: var(--success-soft);
   color: var(--success);
 }
+
+/* ---------------------------------------------------------------------------
+   訓練紀錄 — the coach's mid-session screen.
+
+   The layout answers one question in one glance: what did this client lift
+   last time. Weight is therefore the only thing set at display size; name,
+   sets and the change sit around it in descending weight, and the labels the
+   mockup repeats on every card ("最新重量", "組數"…) are dropped — the column
+   positions teach themselves after the first card, and six copies of the same
+   grey caption is noise in a place where speed is the whole point.
+   --------------------------------------------------------------------------- */
+
+.training-list {
+  display: grid;
+  gap: 10px;
+}
+
+.search-input {
+  margin-top: 12px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.filter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-row .radio-chip {
+  flex: 0 0 auto;
+}
+
+.training-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.training-week {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.training-empty {
+  padding: 24px 4px;
+}
+
+.record-card {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.record-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "identity weight sets delta";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  flex: 1;
+  min-width: 0;
+  padding: 14px 6px 14px 16px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.record-identity {
+  grid-area: identity;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.record-name {
+  font-size: 17px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-date {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.record-weight {
+  grid-area: weight;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-weight-value {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.record-weight-unit {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.record-sets {
+  grid-area: sets;
+  justify-self: end;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.delta {
+  grid-area: delta;
+  justify-self: end;
+  min-width: 58px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Direction is carried by the arrow and the sign, not by colour alone. A
+   lighter week is not an error, so a decrease is not painted as one. */
+.delta-up {
+  color: var(--success);
+}
+
+.delta-down,
+.delta-same,
+.delta-first {
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.delta-unit {
+  font-weight: 600;
+}
+
+.record-add {
+  flex: 0 0 auto;
+  width: 56px;
+  min-height: var(--tap-min);
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.record-add:active {
+  background: var(--primary);
+  color: #fff;
+}
+
+@media (max-width: 400px) {
+  /* Four columns stop fitting before the numbers do -- a three-digit weight
+     next to "↑ +10 kg" is what breaks first. The change drops to a second
+     row rather than being truncated or shrunk below readable size. */
+  .record-main {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "identity weight sets"
+      "identity weight delta";
+    row-gap: 4px;
+  }
+
+  .record-sets {
+    padding-left: 10px;
+  }
+
+  .delta {
+    min-width: 0;
+  }
+}
+
+/* 動作歷史 ------------------------------------------------------------------ */
+
+.latest-card {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.latest-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.latest-sets {
+  margin-left: auto;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-date {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.history-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-weight {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.history-sets {
+  width: 52px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 快速新增 sheet ------------------------------------------------------------ */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.sheet-panel {
+  width: 100%;
+  max-width: 560px;
+  display: grid;
+  gap: 14px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+  justify-self: center;
+}
+
+.sheet-title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.reuse-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 10px 14px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reuse-label {
+  font-weight: 700;
+}
+
+.reuse-detail {
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper-value {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper-unit {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sheet-actions .btn {
+  flex: 1;
+}

@@ -4,8 +4,9 @@ import {
   type WorkoutSession,
   type WorkoutSessionDetail,
   type WorkoutExerciseWithExercise,
-  type ClientExercisePerformance,
   type ClientExercisePerformanceSet,
+  type ExerciseHistoryEntry,
+  type TrainingRecord,
 } from "./types";
 
 /** WorkoutRepository (PRD §17). */
@@ -131,17 +132,56 @@ export async function listClientWorkouts(clientId: string): Promise<ClientWorkou
   return data ?? [];
 }
 
-/** "動作表現": for every exercise this client has ever done, only the most
- * recent occurrence's sets (not full history) — most recently trained
- * exercise first. */
-export async function getClientExercisePerformance(clientId: string): Promise<ClientExercisePerformance[]> {
+/** The training-record screen: every exercise this client has done, newest
+ * first, each with its latest session and the one before it. Replaces
+ * getClientExercisePerformance, which could not answer "is this more than
+ * last time". */
+export async function getClientTrainingRecords(clientId: string): Promise<TrainingRecord[]> {
   const supabase = createSupabaseClient();
-  const { data, error } = await supabase.rpc("get_client_exercise_performance", {
+  const { data, error } = await supabase.rpc("get_client_training_records", {
     target_client_id: clientId,
+  });
+  if (error) throw new RepositoryError(error.message, error);
+  return (data ?? []) as TrainingRecord[];
+}
+
+/** Every session in which this client did this exercise, newest first. */
+export async function getClientExerciseHistory(
+  clientId: string,
+  exerciseId: string,
+): Promise<ExerciseHistoryEntry[]> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase.rpc("get_client_exercise_history", {
+    target_client_id: clientId,
+    target_exercise_id: exerciseId,
   });
   if (error) throw new RepositoryError(error.message, error);
   return (data ?? []).map((row) => ({
     ...row,
     sets: (row.sets as unknown as ClientExercisePerformanceSet[] | null) ?? [],
-  }));
+  })) as ExerciseHistoryEntry[];
 }
+
+/** Log N identical completed sets in one call. Returns the session they landed
+ * in — today's, if one was already open. */
+export async function quickLogExercise(input: {
+  clientId: string;
+  exerciseId: string;
+  weight: number;
+  setCount: number;
+  reps?: number | null;
+  sessionDate: string;
+}): Promise<string> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase.rpc("quick_log_exercise", {
+    target_client_id: input.clientId,
+    target_exercise_id: input.exerciseId,
+    p_weight: input.weight,
+    p_set_count: input.setCount,
+    p_reps: input.reps ?? undefined,
+    p_session_date: input.sessionDate,
+  });
+  if (error) throw new RepositoryError(error.message, error);
+  return data as string;
+}
+

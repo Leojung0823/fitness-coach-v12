@@ -222,6 +222,48 @@ begin
   end if;
 end $$;
 
+-- Cross-org denial through the training-record functions. They are security
+-- invoker, so RLS is the whole boundary -- which is exactly why it has to be
+-- asserted rather than assumed: an accidental `security definer` here would
+-- hand every organisation's training history to anyone who knows a client id.
+do $$
+declare
+  v_count int;
+  v_logged boolean := false;
+begin
+  select count(*) into v_count
+  from public.get_client_training_records('caaaaaaa-caaa-caaa-caaa-caaaaaaaaaaa');
+  if v_count <> 0 then
+    raise exception 'RLS FAILURE: org B coach read org A training records (count=%)', v_count;
+  end if;
+
+  select count(*) into v_count
+  from public.get_client_exercise_history(
+    'caaaaaaa-caaa-caaa-caaa-caaaaaaaaaaa',
+    (select id from public.exercises where is_system limit 1)
+  );
+  if v_count <> 0 then
+    raise exception 'RLS FAILURE: org B coach read org A exercise history (count=%)', v_count;
+  end if;
+
+  -- The write path matters more than the reads: this one opens sessions.
+  begin
+    perform public.quick_log_exercise(
+      'caaaaaaa-caaa-caaa-caaa-caaaaaaaaaaa',
+      (select id from public.exercises where is_system limit 1),
+      60, 3
+    );
+    v_logged := true;
+  exception
+    when insufficient_privilege then v_logged := false;
+    when no_data_found then v_logged := false;
+    when foreign_key_violation then v_logged := false;
+  end;
+  if v_logged then
+    raise exception 'RLS FAILURE: org B coach logged training onto org A client';
+  end if;
+end $$;
+
 -- ---------------------------------------------------------------------------
 -- Positive control: Coach A (own org) must still be able to read and write
 -- their own organization's data. If this fails, the policies above are too
@@ -252,6 +294,27 @@ begin
   if v_count <> 1 then
     raise exception 'RLS FAILURE (over-restrictive): org A coach could not read their own workout_sets (count=%)', v_count;
   end if;
+
+  -- The owning coach must still get their own training records back, and
+  -- quick logging must actually work for them.
+  select count(*) into v_count
+  from public.get_client_training_records('caaaaaaa-caaa-caaa-caaa-caaaaaaaaaaa');
+  if v_count < 1 then
+    raise exception 'RLS FAILURE (over-restrictive): org A coach saw no training records for their own client';
+  end if;
+
+  perform public.quick_log_exercise(
+    'caaaaaaa-caaa-caaa-caaa-caaaaaaaaaaa',
+    (select id from public.exercises where is_system limit 1),
+    42.5, 3
+  );
+  if not exists (
+    select 1
+    from public.get_client_training_records('caaaaaaa-caaa-caaa-caaa-caaaaaaaaaaa')
+    where top_weight = 42.5 and set_count = 3
+  ) then
+    raise exception 'RLS FAILURE (over-restrictive): a quick log by the owning coach did not come back';
+  end if;
 end $$;
 
 -- ---------------------------------------------------------------------------
@@ -280,7 +343,7 @@ reset role;
 
 do $$
 begin
-  raise notice 'RLS verification passed: cross-organization isolation holds for clients, workout_sessions, workout_exercises, workout_sets, and exercises; anon access is refused; own-org access still works.';
+  raise notice 'RLS verification passed: cross-organization isolation holds for clients, workout_sessions, workout_exercises, workout_sets, exercises, and the training-record functions; anon access is refused; own-org access still works.';
 end $$;
 
 rollback;

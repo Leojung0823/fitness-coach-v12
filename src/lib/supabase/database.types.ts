@@ -846,7 +846,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      get_client_exercise_performance: {
+      get_client_exercise_history: {
+        Args: {
+          max_occurrences?: number
+          target_client_id: string
+          target_exercise_id: string
+        }
+        Returns: {
+          session_date: string
+          session_id: string
+          set_count: number
+          sets: Json
+          top_weight: number
+          weight_unit: string
+        }[]
+      }
+      get_client_training_records: {
         Args: { target_client_id: string }
         Returns: {
           exercise_id: string
@@ -854,10 +869,26 @@ export type Database = {
           exercise_name_zh_tw: string
           last_session_date: string
           last_session_id: string
-          last_session_status: string
-          last_started_at: string
-          sets: Json
+          muscle_filter_key: string
+          previous_session_date: string
+          previous_top_weight: number
+          set_count: number
+          top_weight: number
+          weight_delta: number
+          weight_unit: string
         }[]
+      }
+      muscle_filter_key: { Args: { target_group_id: string }; Returns: string }
+      quick_log_exercise: {
+        Args: {
+          p_reps?: number
+          p_session_date?: string
+          p_set_count: number
+          p_weight: number
+          target_client_id: string
+          target_exercise_id: string
+        }
+        Returns: string
       }
       record_exercise_usage: {
         Args: { target_exercise_id: string; target_organization_id: string }

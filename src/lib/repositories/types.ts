@@ -38,14 +38,30 @@ export type ClientExercisePerformanceSet = {
   is_completed: boolean;
 };
 
-export type ClientExercisePerformance = {
+/** One exercise on the training-record screen: the latest session, plus the
+ * one before it so the screen can say whether the weight moved. */
+export type TrainingRecord = {
   exercise_id: string;
   exercise_name_zh_tw: string;
   exercise_name_en: string | null;
+  muscle_filter_key: string;
   last_session_id: string;
   last_session_date: string;
-  last_started_at: string;
-  last_session_status: string;
+  top_weight: number;
+  weight_unit: string;
+  set_count: number;
+  previous_session_date: string | null;
+  previous_top_weight: number | null;
+  /** null on the first ever occurrence — different from 0, which is "no change". */
+  weight_delta: number | null;
+};
+
+export type ExerciseHistoryEntry = {
+  session_id: string;
+  session_date: string;
+  top_weight: number;
+  weight_unit: string;
+  set_count: number;
   sets: ClientExercisePerformanceSet[];
 };
 

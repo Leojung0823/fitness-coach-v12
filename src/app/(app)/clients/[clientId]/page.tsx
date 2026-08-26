@@ -9,13 +9,25 @@ import { getClient, archiveClient } from "@/lib/repositories/clients";
 import {
   listClientWorkouts,
   createWorkoutSession,
-  getClientExercisePerformance,
+  getClientTrainingRecords,
+  quickLogExercise,
   type ClientWorkoutListItem,
 } from "@/lib/repositories/workouts";
-import type { Client, ClientExercisePerformance } from "@/lib/repositories/types";
+import type { Client, TrainingRecord } from "@/lib/repositories/types";
 import { toFriendlyMessage } from "@/lib/errors";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateBlock";
-import { formatDateTimeWithWeekday, formatDateWithWeekday } from "@/lib/dateFormat";
+import { TrainingRecordList } from "@/components/TrainingRecordList";
+import { QuickLogSheet } from "@/components/QuickLogSheet";
+import { Toast } from "@/components/Toast";
+import { formatDateTimeWithWeekday } from "@/lib/dateFormat";
+
+/** Monday-based, matching how a coach reads "本週". */
+function trainedThisWeek(records: TrainingRecord[]) {
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  return records.filter((record) => new Date(`${record.last_session_date}T00:00:00`) >= monday).length;
+}
 
 const statusBadge: Record<string, { label: string; cls: string }> = {
   draft: { label: t.workout.draft, cls: "badge-draft" },
@@ -33,8 +45,11 @@ export default function ClientDetailPage() {
   const [starting, setStarting] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [activeTab, setActiveTab] = useState<"history" | "performance">("history");
-  const [performance, setPerformance] = useState<ClientExercisePerformance[] | null>(null);
+  const [records, setRecords] = useState<TrainingRecord[] | null>(null);
   const [performanceError, setPerformanceError] = useState<string | null>(null);
+  const [quickLogFor, setQuickLogFor] = useState<TrainingRecord | null>(null);
+  const [savingQuickLog, setSavingQuickLog] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -57,11 +72,11 @@ export default function ClientDetailPage() {
   // Lazy-loaded — most visits only look at 歷史課程, no need to pay for
   // the performance query on every client detail page load.
   useEffect(() => {
-    if (activeTab !== "performance" || performance !== null) return;
+    if (activeTab !== "performance" || records !== null) return;
     let active = true;
-    getClientExercisePerformance(params.clientId)
+    getClientTrainingRecords(params.clientId)
       .then((data) => {
-        if (active) setPerformance(data);
+        if (active) setRecords(data);
       })
       .catch((err) => {
         if (active) setPerformanceError(toFriendlyMessage(err));
@@ -69,7 +84,31 @@ export default function ClientDetailPage() {
     return () => {
       active = false;
     };
-  }, [activeTab, performance, params.clientId]);
+  }, [activeTab, records, params.clientId]);
+
+  async function handleQuickLog(input: { weight: number; setCount: number; sessionDate: string }) {
+    if (!quickLogFor) return;
+    setSavingQuickLog(true);
+    try {
+      await quickLogExercise({
+        clientId: params.clientId,
+        exerciseId: quickLogFor.exercise_id,
+        weight: input.weight,
+        setCount: input.setCount,
+        sessionDate: input.sessionDate,
+      });
+      setQuickLogFor(null);
+      setToast(t.training.saved);
+      // The list now disagrees with the database -- refetch rather than patch
+      // it locally, because the delta and the ordering both changed.
+      setRecords(await getClientTrainingRecords(params.clientId));
+      setSessions(await listClientWorkouts(params.clientId));
+    } catch (err) {
+      setPerformanceError(toFriendlyMessage(err));
+    } finally {
+      setSavingQuickLog(false);
+    }
+  }
 
   async function handleStartSession() {
     setStarting(true);
@@ -245,43 +284,45 @@ export default function ClientDetailPage() {
           </>
         ) : (
           <>
-            {performanceError ? <div className="banner banner-error" style={{ marginTop: 12 }}>{performanceError}</div> : null}
+            {performanceError ? (
+              <div className="banner banner-error" style={{ marginTop: 12 }}>{performanceError}</div>
+            ) : null}
 
-            {performance === null && !performanceError ? <LoadingState /> : null}
+            {records === null && !performanceError ? <LoadingState /> : null}
 
-            {performance && performance.length === 0 ? (
+            {records && records.length === 0 ? (
               <EmptyState icon="📈" message={t.clients.noPerformance} />
             ) : null}
 
-            {performance && performance.length > 0
-              ? performance.map((p) => (
-                  <Link key={p.exercise_id} href={`/workout/${p.last_session_id}`} className="card-link">
-                    <div className="card">
-                      <div style={{ fontWeight: 700 }}>{p.exercise_name_zh_tw}</div>
-                      {p.exercise_name_en ? (
-                        <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                          {p.exercise_name_en}
-                        </div>
-                      ) : null}
-                      <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                        {t.clients.performanceLastDate}：{formatDateWithWeekday(p.last_session_date)}
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-                        {p.sets.map((s) => (
-                          <span key={s.set_number} className="chip-static">
-                            {s.weight_value}
-                            {t.common.kg} × {s.reps ?? 0}
-                            {t.common.reps}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              : null}
+            {records && records.length > 0 ? (
+              <>
+                <div className="training-summary">
+                  <span className="training-week">{t.training.weekSummary(trainedThisWeek(records))}</span>
+                  <span className="muted">
+                    {t.training.lastUpdated(records[0].last_session_date.replaceAll("-", "/"))}
+                  </span>
+                </div>
+                <TrainingRecordList
+                  clientId={params.clientId}
+                  records={records}
+                  onQuickLog={setQuickLogFor}
+                />
+              </>
+            ) : null}
           </>
         )}
       </div>
+
+      {quickLogFor ? (
+        <QuickLogSheet
+          record={quickLogFor}
+          saving={savingQuickLog}
+          onSave={handleQuickLog}
+          onClose={() => setQuickLogFor(null)}
+        />
+      ) : null}
+
+      {toast ? <Toast message={toast} onDismiss={() => setToast(null)} /> : null}
     </div>
   );
 }
