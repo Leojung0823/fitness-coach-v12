@@ -144,6 +144,18 @@ docker exec -i supabase_db_fitness-coach-v12 psql -U postgres -d postgres \
 
 驗證涵蓋：`clients`、`workout_sessions`、`workout_exercises`、`workout_sets`、自訂 `exercises` 的跨組織讀寫拒絕；未登入（anon）完全無法存取；以及正向測試（同組織內的正常存取仍然可以運作）。
 
+## 部署上線
+
+```bash
+./scripts/deploy-prod.sh
+```
+
+**資料庫先、前端後**，腳本就是照這個順序跑，中間會問一次資料庫密碼（Dashboard → Settings → Database；輸入時不顯示，不要寫在指令列上）。跑完會自己確認線上真的換版了。
+
+反過來做會出事：新版前端呼叫的函式如果還沒進資料庫，一分鐘前還正常的畫面會直接報錯。先套資料庫是安全的 —— 舊版前端不會呼叫新函式。
+
+> Vercel 專案目前**沒有接 GitHub**：push 到 `main` 不會觸發任何部署，只有跑上面這個腳本才會。要改成 push 即部署，到 Vercel → 專案 → Settings → Git 接上 repository；接上之後這個腳本就只剩 migration 那一段有用。
+
 ## 建置
 
 ```bash
