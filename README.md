@@ -107,9 +107,16 @@ https://coach-note-rho.vercel.app/**
 
 必須是 `/**` 結尾。只寫網域（沒有萬用字元）代表「只允許這個網址本身」，任何帶路徑的 redirect 都會被拒絕，然後 **靜默地** 換成 Site URL——使用者會被丟到首頁再被導去登入頁，看起來像連結壞掉。
 
-**2. Authentication → Email Templates → Reset Password**
+**2. Authentication → Email Templates**
 
-把 `supabase/templates/recovery.html` 的內容貼進去。關鍵是連結要用 `{{ .TokenHash }}`：
+兩個範本都要換掉，內容分別在 `supabase/templates/` 底下：
+
+| Dashboard 範本 | 檔案 |
+| --- | --- |
+| Reset Password | `supabase/templates/recovery.html` |
+| Confirm signup | `supabase/templates/confirmation.html` |
+
+關鍵都一樣：連結要用 `{{ .TokenHash }}`。
 
 ```html
 <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
@@ -121,6 +128,8 @@ token hash 把驗證所需的東西全部放在連結裡，因此在任何裝置
 
 > **另外請確認 Authentication → Providers → Email 的 Confirm email 設定。**
 > 目前 hosted 專案是 `mailer_autoconfirm: true`（信箱驗證關閉），代表任何人可以用**任何一個不屬於自己的 Email** 註冊並立即取得帳號與新組織。開啟驗證之前要先完成上面兩項，否則確認信的連結會遇到同一個問題。
+>
+> 本機 `config.toml` 的 `enable_confirmations` 已經設為 `true`，好讓確認信這條路在開發時就會被走到，而不是上線後才發現。信會進 Mailpit（見上面的連線資訊表），點一下就完成。
 
 ## 資料庫驗證
 

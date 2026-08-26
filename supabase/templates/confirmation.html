@@ -1,0 +1,18 @@
+<h2>確認你的 Coach Note 帳號</h2>
+
+<p>點下面的連結完成註冊，就可以開始建立學員與課表：</p>
+
+<p>
+  <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=signup&next=/clients">
+    確認帳號
+  </a>
+</p>
+
+<p>如果不是你本人註冊的，忽略這封信即可，這個帳號不會被啟用。</p>
+
+<!--
+  Same reason as recovery.html: the default `.ConfirmationURL` carries a PKCE
+  code that only the browser which submitted the sign-up form can exchange.
+  Registering on a laptop and confirming on a phone is ordinary behaviour, so
+  the link has to stand on its own -- which is what a token hash does.
+-->
