@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useOrg } from "@/lib/OrgContext";
 import { t } from "@/lib/strings";
@@ -38,13 +38,17 @@ const statusBadge: Record<string, { label: string; cls: string }> = {
 export default function ClientDetailPage() {
   const params = useParams<{ clientId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { organizationId } = useOrg();
   const [client, setClient] = useState<Client | null | undefined>(undefined);
   const [sessions, setSessions] = useState<ClientWorkoutListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"history" | "performance">("history");
+  // The 訓練 tab links straight here, so honour where it wanted to land.
+  const [activeTab, setActiveTab] = useState<"history" | "performance">(
+    searchParams.get("tab") === "training" ? "performance" : "history",
+  );
   const [records, setRecords] = useState<TrainingRecord[] | null>(null);
   const [performanceError, setPerformanceError] = useState<string | null>(null);
   const [quickLogFor, setQuickLogFor] = useState<TrainingRecord | null>(null);

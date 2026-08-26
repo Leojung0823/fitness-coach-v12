@@ -132,6 +132,56 @@ export async function listClientWorkouts(clientId: string): Promise<ClientWorkou
   return data ?? [];
 }
 
+export type TodaySession = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  status: string;
+  started_at: string;
+  total_exercises: number;
+  total_sets: number;
+};
+
+/** Every session for one date, across all of this organisation's clients —
+ * what the coach opens the app to see. */
+export async function listSessionsOnDate(sessionDate: string): Promise<TodaySession[]> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("id, client_id, status, started_at, total_exercises, total_sets, client:clients(full_name)")
+    .eq("session_date", sessionDate)
+    .neq("status", "cancelled")
+    .is("deleted_at", null)
+    .order("started_at", { ascending: true });
+  if (error) throw new RepositoryError(error.message, error);
+
+  return ((data ?? []) as unknown as (Omit<TodaySession, "client_name"> & {
+    client: { full_name: string } | null;
+  })[]).map(({ client, ...session }) => ({
+    ...session,
+    client_name: client?.full_name ?? "",
+  }));
+}
+
+/** Sessions and distinct clients trained between two dates, inclusive. */
+export async function getRangeSummary(
+  fromDate: string,
+  toDate: string,
+): Promise<{ sessions: number; clients: number }> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("id, client_id")
+    .gte("session_date", fromDate)
+    .lte("session_date", toDate)
+    .neq("status", "cancelled")
+    .is("deleted_at", null);
+  if (error) throw new RepositoryError(error.message, error);
+
+  const rows = (data ?? []) as { id: string; client_id: string }[];
+  return { sessions: rows.length, clients: new Set(rows.map((row) => row.client_id)).size };
+}
+
 /** The training-record screen: every exercise this client has done, newest
  * first, each with its latest session and the one before it. Replaces
  * getClientExercisePerformance, which could not answer "is this more than

@@ -1061,3 +1061,135 @@ textarea.input {
 .sheet-actions .btn {
   flex: 1;
 }
+
+/* 底部導覽 ------------------------------------------------------------------
+   Fixed to the bottom because that is where the thumb is. The safe-area inset
+   keeps it clear of the iPhone home indicator, and .page-body carries matching
+   padding so the last card in a list is never trapped underneath it. */
+
+.bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: grid;
+  /* The bar spans the window so it still reaches the screen edges on a phone,
+     but its four targets line up with the 560px content column rather than
+     drifting to the far corners of a desktop window. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 -2px 10px rgba(16, 24, 40, 0.06);
+}
+
+.bottom-nav-item {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: var(--tap-min);
+  padding: 6px 2px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Weight as well as colour, so the current tab is still obvious to someone who
+   cannot separate the two hues. */
+.bottom-nav-item.current {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.bottom-nav-item:active {
+  background: var(--primary-soft);
+}
+
+.page-body {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+/* 今天 ---------------------------------------------------------------------- */
+
+.today-summary {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.today-stat {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.today-stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.today-stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.session-row-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.session-row-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* 我的 ---------------------------------------------------------------------- */
+
+.account-rows {
+  display: grid;
+  gap: 2px;
+}
+
+.account-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.account-row:last-child {
+  border-bottom: 0;
+}
+
+.account-row-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.account-row-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+  font-weight: 600;
+}

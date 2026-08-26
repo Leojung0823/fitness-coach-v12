@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useOrg } from "@/lib/OrgContext";
 import { t } from "@/lib/strings";
 import { listClients, type ClientListItem } from "@/lib/repositories/clients";
-import { signOut } from "@/lib/repositories/auth";
 import { toFriendlyMessage } from "@/lib/errors";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateBlock";
 
@@ -17,13 +16,12 @@ function formatDate(dateStr: string | null) {
 }
 
 export default function ClientsPage() {
-  const { organizationId, displayName } = useOrg();
+  const { organizationId } = useOrg();
   const router = useRouter();
   const [clients, setClients] = useState<ClientListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -43,50 +41,10 @@ export default function ClientsPage() {
     load();
   }, [load]);
 
-  async function handleLogout() {
-    await signOut();
-    router.push("/login");
-    router.refresh();
-  }
-
   return (
     <div className="page">
       <header className="page-header">
         <h1>{t.clients.listTitle}</h1>
-        <div style={{ position: "relative" }}>
-          <button
-            className="icon-btn"
-            aria-label="使用者選單"
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            👤
-          </button>
-          {menuOpen ? (
-            <div
-              className="card"
-              style={{
-                position: "absolute",
-                right: 0,
-                top: 48,
-                zIndex: 30,
-                minWidth: 180,
-                padding: 8,
-              }}
-              onMouseLeave={() => setMenuOpen(false)}
-            >
-              <div className="muted" style={{ padding: "6px 10px" }}>
-                {displayName}
-              </div>
-              <button
-                className="btn btn-ghost btn-block"
-                style={{ justifyContent: "flex-start" }}
-                onClick={handleLogout}
-              >
-                {t.auth.logoutButton}
-              </button>
-            </div>
-          ) : null}
-        </div>
       </header>
 
       <div className="page-body">

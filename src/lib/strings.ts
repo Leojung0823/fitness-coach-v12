@@ -27,6 +27,40 @@ export const t = {
     reps: "次",
   },
 
+  nav: {
+    home: "首頁",
+    clients: "學員",
+    training: "訓練",
+    account: "我的",
+  },
+
+  home: {
+    title: "今天",
+    todaySessions: "今天的課",
+    noSessionsToday: "今天還沒有課程紀錄。",
+    resume: "繼續紀錄",
+    open: "查看",
+    weekSummary: "本週",
+    weekSessions: (count: number) => `${count} 堂課`,
+    weekClients: (count: number) => `${count} 位學員`,
+    recentClients: "最近上課的學員",
+    draft: "進行中",
+  },
+
+  account: {
+    title: "我的",
+    workspace: "工作區",
+    email: "登入 Email",
+    signOut: "登出",
+  },
+
+  trainingTab: {
+    title: "訓練",
+    subtitle: "點學員直接看他的訓練紀錄。",
+    empty: "還沒有任何訓練紀錄。先幫學員建立一堂課吧。",
+    neverTrained: "尚未上課",
+  },
+
   training: {
     searchPlaceholder: "搜尋動作",
     noSearchResult: (term: string) => `找不到「${term}」，換個關鍵字或先在課程裡新增這個動作。`,
