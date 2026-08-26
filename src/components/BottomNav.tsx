@@ -64,6 +64,11 @@ function Icon({ name }: { name: (typeof ITEMS)[number]["icon"] }) {
 export function BottomNav() {
   const pathname = usePathname();
 
+  // Recording a workout is a focused task with its own action bar at the
+  // bottom; stacking a second bar under it would cost a third of a phone
+  // screen and put two different "what do I tap now" answers side by side.
+  if (pathname.startsWith("/workout")) return null;
+
   return (
     <nav className="bottom-nav" aria-label="主要導覽">
       {ITEMS.map((item) => {

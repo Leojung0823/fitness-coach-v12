@@ -445,7 +445,7 @@ export default function WorkoutRecordingPage() {
         ) : null}
       </header>
 
-      <div className="page-body">
+      <div className="page-body with-bottom-bar">
         {error ? <div className="banner banner-error">{error}</div> : null}
 
         <Stopwatch />
