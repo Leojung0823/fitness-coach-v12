@@ -144,6 +144,19 @@ docker exec -i supabase_db_fitness-coach-v12 psql -U postgres -d postgres \
 
 驗證涵蓋：`clients`、`workout_sessions`、`workout_exercises`、`workout_sets`、自訂 `exercises` 的跨組織讀寫拒絕；未登入（anon）完全無法存取；以及正向測試（同組織內的正常存取仍然可以運作）。
 
+## CI
+
+`.github/workflows/ci.yml` 在每次 push 到 `main` 與每個 PR 上跑：
+
+| 工作 | 內容 |
+| --- | --- |
+| Typecheck, lint, build | `npm run typecheck` / `lint` / `build` |
+| RLS verification | 起一個 Supabase、套 migration、跑 `supabase/verification/rls_organization_isolation.sql`，再跑 `db lint` |
+
+第二項的存在理由很具體：那支驗證腳本是這個專案唯一檢查跨組織隔離的東西，而它曾經**紅了兩個星期沒有人發現**（動作庫從 60 擴到 460 之後，寫死的斷言就失效了）。只有人記得手動跑的檢查，等於沒有檢查。
+
+CI 不會部署任何東西 —— 部署是下面那個腳本，要手動跑。
+
 ## 部署上線
 
 ```bash

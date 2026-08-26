@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck, lint, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      # The build needs the two public values at build time. They are the anon
+      # key and the project URL -- values every visitor's browser receives --
+      # so placeholders are enough to compile; nothing here talks to a database.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-time-placeholder
+
+  database:
+    name: RLS verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # ARCHITECTURE.md §7 makes cross-organization isolation a hard
+      # requirement, and this script is the only thing that checks it. It spent
+      # two weeks failing on a stale assertion without anyone noticing, which
+      # is the reason this job exists.
+      - name: Start Supabase and apply migrations
+        run: |
+          supabase start
+          supabase db reset --local
+
+      - name: Verify cross-organization isolation
+        run: |
+          docker exec -i "$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            < supabase/verification/rls_organization_isolation.sql
+
+      - name: Lint database functions
+        run: supabase db lint --local
