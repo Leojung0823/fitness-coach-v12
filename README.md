@@ -99,8 +99,10 @@ Next.js 開發伺服器預設會監聽所有網路介面，所以同一個 Wi-Fi
 
 ```bash
 docker exec -i supabase_db_fitness-coach-v12 psql -U postgres -d postgres \
-  -v ON_ERROR_STOP=1 -f supabase/verification/rls_organization_isolation.sql
+  -v ON_ERROR_STOP=1 < supabase/verification/rls_organization_isolation.sql
 ```
+
+（腳本用 stdin 導入；`-f` 會在容器裡面找檔案，而 repository 沒有掛載進容器。）
 
 驗證涵蓋：`clients`、`workout_sessions`、`workout_exercises`、`workout_sets`、自訂 `exercises` 的跨組織讀寫拒絕；未登入（anon）完全無法存取；以及正向測試（同組織內的正常存取仍然可以運作）。
 

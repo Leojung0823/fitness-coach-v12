@@ -6,7 +6,10 @@
 --
 -- Run with:
 --   docker exec -i supabase_db_fitness-coach-v12 psql -U postgres -d postgres \
---     -v ON_ERROR_STOP=1 -f supabase/verification/rls_organization_isolation.sql
+--     -v ON_ERROR_STOP=1 < supabase/verification/rls_organization_isolation.sql
+--
+-- The script is piped in on stdin: `-f` would be resolved inside the
+-- container, where the repository is not mounted.
 --
 -- Any RLS regression raises a `RLS FAILURE: ...` exception and aborts the
 -- script with a non-zero exit code. No output besides NOTICEs means every
@@ -80,6 +83,18 @@ begin
   values (v_workout_exercise_b, 1, 20.0, 10, false);
 end $$;
 
+-- How many system exercises actually exist, read as the superuser with RLS
+-- bypassed. The check below compares against this rather than a literal: the
+-- property under test is "RLS hides none of them from an org member", which is
+-- true whatever the seed happens to contain. A hard-coded number instead turns
+-- every expansion of the exercise library into a failing security check --
+-- which is exactly what happened when the seed grew from 60 to 460.
+select set_config(
+  'verify.system_exercise_count',
+  (select count(*)::text from public.exercises where is_system),
+  true
+);
+
 -- ---------------------------------------------------------------------------
 -- Act as Coach B (authenticated, org B) and confirm org A data is invisible
 -- and unwritable.
@@ -90,6 +105,7 @@ set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","r
 do $$
 declare
   v_count int;
+  v_expected_system int;
 begin
   -- Cross-org SELECT denial: clients
   select count(*) into v_count from public.clients where id = 'caaaaaaa-caaa-caaa-caaa-caaaaaaaaaaa';
@@ -125,9 +141,16 @@ begin
   end if;
 
   -- System exercises must still be visible to every authenticated org member
+  v_expected_system := current_setting('verify.system_exercise_count')::int;
+  -- Guards against the check passing vacuously: with no seed at all, "sees
+  -- every system exercise" would be trivially true and prove nothing.
+  if v_expected_system < 1 then
+    raise exception 'RLS FAILURE: no system exercises are seeded, so their visibility cannot be verified';
+  end if;
+
   select count(*) into v_count from public.exercises where is_system;
-  if v_count <> 60 then
-    raise exception 'RLS FAILURE: org B coach could not read the expected 60 system exercises (count=%)', v_count;
+  if v_count <> v_expected_system then
+    raise exception 'RLS FAILURE: org B coach saw % of the % system exercises', v_count, v_expected_system;
   end if;
 end $$;
 
