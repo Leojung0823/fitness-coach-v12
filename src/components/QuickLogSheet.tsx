@@ -36,6 +36,8 @@ export function QuickLogSheet({
     setSetCount(record.set_count);
   };
 
+  // ±2 per tap, at the user's request. The keyboard is still there for a
+  // half-plate change; the steppers are for the common adjustment.
   const step = (delta: number) =>
     setWeight((current) => Math.min(9999, Math.max(0, Math.round((current + delta) * 100) / 100)));
 
@@ -63,7 +65,7 @@ export function QuickLogSheet({
             {t.training.weightLabel}
           </label>
           <div className="stepper-row">
-            <button type="button" className="stepper-btn" onClick={() => step(-2.5)} aria-label="減少 2.5">
+            <button type="button" className="stepper-btn" onClick={() => step(-2)} aria-label="減少 2">
               −
             </button>
             <input
@@ -77,7 +79,7 @@ export function QuickLogSheet({
               value={weight}
               onChange={(event) => setWeight(Number(event.target.value))}
             />
-            <button type="button" className="stepper-btn" onClick={() => step(2.5)} aria-label="增加 2.5">
+            <button type="button" className="stepper-btn" onClick={() => step(2)} aria-label="增加 2">
               ＋
             </button>
             <span className="stepper-unit">{record.weight_unit}</span>
