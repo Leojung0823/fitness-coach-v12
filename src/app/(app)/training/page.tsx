@@ -57,7 +57,7 @@ export default function TrainingPage() {
         {(clients ?? []).map((client) => (
           <Link
             key={client.id}
-            href={`/clients/${client.id}?tab=training`}
+            href={`/clients/${client.id}/training`}
             className="card-link"
           >
             <div className="card session-row">

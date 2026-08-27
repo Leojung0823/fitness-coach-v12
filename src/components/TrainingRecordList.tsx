@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { t } from "@/lib/strings";
+import { ExerciseIcon } from "@/components/ExerciseIcon";
 import type { TrainingRecord } from "@/lib/repositories/types";
 
 const FILTERS = [
@@ -33,17 +34,20 @@ function trimWeight(value: number) {
 
 function Delta({ record }: { record: TrainingRecord }) {
   if (record.weight_delta === null) {
-    return <span className="delta delta-first">{t.training.firstTime}</span>;
+    return <span className="delta delta-flat">{t.training.firstTime}</span>;
   }
   if (record.weight_delta === 0) {
-    return <span className="delta delta-same">{t.training.same}</span>;
+    return <span className="delta delta-flat">{t.training.same}</span>;
   }
   const up = record.weight_delta > 0;
   return (
     <span className={up ? "delta delta-up" : "delta delta-down"}>
-      <span aria-hidden="true">{up ? "↑" : "↓"}</span> {up ? "+" : "−"}
-      {trimWeight(Math.abs(record.weight_delta))}
-      <span className="delta-unit"> {record.weight_unit}</span>
+      <span className="delta-arrow" aria-hidden="true">{up ? "↑" : "↓"}</span>
+      <span className="delta-value">
+        {up ? "+" : "−"}
+        {trimWeight(Math.abs(record.weight_delta))}
+      </span>
+      <span className="delta-unit">{record.weight_unit}</span>
     </span>
   );
 }
@@ -51,11 +55,9 @@ function Delta({ record }: { record: TrainingRecord }) {
 export function TrainingRecordList({
   clientId,
   records,
-  onQuickLog,
 }: {
   clientId: string;
   records: TrainingRecord[];
-  onQuickLog: (record: TrainingRecord) => void;
 }) {
   const [term, setTerm] = useState("");
   const [filter, setFilter] = useState<string>("all");
@@ -81,15 +83,23 @@ export function TrainingRecordList({
 
   return (
     <div className="training-list">
-      <input
-        className="input search-input"
-        type="search"
-        inputMode="search"
-        placeholder={t.training.searchPlaceholder}
-        value={term}
-        onChange={(event) => setTerm(event.target.value)}
-        aria-label={t.training.searchPlaceholder}
-      />
+      <div className="search-field">
+        <span className="search-field-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="6.5" />
+            <path d="m16 16 4.5 4.5" />
+          </svg>
+        </span>
+        <input
+          className="input search-input"
+          type="search"
+          inputMode="search"
+          placeholder={t.training.searchPlaceholder}
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          aria-label={t.training.searchPlaceholder}
+        />
+      </div>
 
       {availableFilters.length > 2 ? (
         <div className="filter-row" role="group" aria-label={t.training.filters.all}>
@@ -112,41 +122,48 @@ export function TrainingRecordList({
       ) : null}
 
       {visible.map((record) => (
-        <div key={record.exercise_id} className="record-card">
-          <Link
-            href={`/clients/${clientId}/exercise/${record.exercise_id}`}
-            className="record-main"
-            aria-label={`${record.exercise_name_zh_tw}，${trimWeight(record.top_weight)} ${record.weight_unit}，${t.training.setsUnit(record.set_count)}`}
-          >
-            <span className="record-identity">
-              <span className="record-name">{record.exercise_name_zh_tw}</span>
-              {/* Relative time answers the question the coach actually has --
-                  "how long since we trained this" -- which 08/25 does not. */}
-              <span className="record-date">
-                {t.training.daysAgo(daysBetween(record.last_session_date))} ·{" "}
-                {shortDate(record.last_session_date)}
+        <Link
+          key={record.exercise_id}
+          href={`/clients/${clientId}/exercise/${record.exercise_id}`}
+          className="record-card"
+          aria-label={`${record.exercise_name_zh_tw}，${trimWeight(record.top_weight)} ${record.weight_unit}，${t.training.setsUnit(record.set_count)}`}
+        >
+          <ExerciseIcon group={record.muscle_filter_key} />
+
+          <span className="record-identity">
+            <span className="record-name">{record.exercise_name_zh_tw}</span>
+            <span className="record-date">
+              <span className="record-date-icon" aria-hidden="true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+                  <path d="M3.5 9.5h17M8.5 3v3.6M15.5 3v3.6" />
+                </svg>
               </span>
+              {shortDate(record.last_session_date)}
             </span>
+          </span>
 
-            <span className="record-weight">
-              <span className="record-weight-value">{trimWeight(record.top_weight)}</span>
-              <span className="record-weight-unit">{record.weight_unit}</span>
+          <span className="record-metric">
+            <span className="record-metric-label">{t.training.latestWeight}</span>
+            <span className="record-metric-value">
+              {trimWeight(record.top_weight)}
+              <span className="record-metric-unit">{record.weight_unit}</span>
             </span>
+          </span>
 
-            <span className="record-sets">{t.training.setsUnit(record.set_count)}</span>
+          <span className="record-metric record-metric-divided">
+            <span className="record-metric-label">{t.training.setCount}</span>
+            <span className="record-metric-value">
+              {record.set_count}
+              <span className="record-metric-unit">組</span>
+            </span>
+          </span>
 
+          <span className="record-metric record-metric-divided">
+            <span className="record-metric-label">{t.training.versusLast}</span>
             <Delta record={record} />
-          </Link>
-
-          <button
-            type="button"
-            className="record-add"
-            onClick={() => onQuickLog(record)}
-            aria-label={t.training.quickLogTitle(record.exercise_name_zh_tw)}
-          >
-            ＋
-          </button>
-        </div>
+          </span>
+        </Link>
       ))}
     </div>
   );

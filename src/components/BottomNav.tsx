@@ -72,9 +72,13 @@ export function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label="主要導覽">
       {ITEMS.map((item) => {
-        // /clients is current for every page beneath it, so opening a client
-        // does not make the bar look like it navigated somewhere else.
-        const current = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        // A client's training screen lives under /clients but belongs to the
+        // 訓練 tab: that is the destination the tab leads to, and the bar
+        // should say where you are, not which route file you are in.
+        const onClientTraining = /^\/clients\/[^/]+\/training$/.test(pathname);
+        const current = onClientTraining
+          ? item.href === "/training"
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={item.href}

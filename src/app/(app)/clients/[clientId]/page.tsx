@@ -46,14 +46,6 @@ export default function ClientDetailPage() {
   const [starting, setStarting] = useState(false);
   const [archiving, setArchiving] = useState(false);
   // The 訓練 tab links straight here, so honour where it wanted to land.
-  const [activeTab, setActiveTab] = useState<"history" | "performance">(
-    searchParams.get("tab") === "training" ? "performance" : "history",
-  );
-  const [records, setRecords] = useState<TrainingRecord[] | null>(null);
-  const [performanceError, setPerformanceError] = useState<string | null>(null);
-  const [quickLogFor, setQuickLogFor] = useState<TrainingRecord | null>(null);
-  const [savingQuickLog, setSavingQuickLog] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -75,45 +67,6 @@ export default function ClientDetailPage() {
 
   // Lazy-loaded — most visits only look at 歷史課程, no need to pay for
   // the performance query on every client detail page load.
-  useEffect(() => {
-    if (activeTab !== "performance" || records !== null) return;
-    let active = true;
-    getClientTrainingRecords(params.clientId)
-      .then((data) => {
-        if (active) setRecords(data);
-      })
-      .catch((err) => {
-        if (active) setPerformanceError(toFriendlyMessage(err));
-      });
-    return () => {
-      active = false;
-    };
-  }, [activeTab, records, params.clientId]);
-
-  async function handleQuickLog(input: { weight: number; setCount: number; sessionDate: string }) {
-    if (!quickLogFor) return;
-    setSavingQuickLog(true);
-    try {
-      await quickLogExercise({
-        clientId: params.clientId,
-        exerciseId: quickLogFor.exercise_id,
-        weight: input.weight,
-        setCount: input.setCount,
-        sessionDate: input.sessionDate,
-      });
-      setQuickLogFor(null);
-      setToast(t.training.saved);
-      // The list now disagrees with the database -- refetch rather than patch
-      // it locally, because the delta and the ordering both changed.
-      setRecords(await getClientTrainingRecords(params.clientId));
-      setSessions(await listClientWorkouts(params.clientId));
-    } catch (err) {
-      setPerformanceError(toFriendlyMessage(err));
-    } finally {
-      setSavingQuickLog(false);
-    }
-  }
-
   async function handleStartSession() {
     setStarting(true);
     try {
@@ -239,94 +192,43 @@ export default function ClientDetailPage() {
           {client.status === "archived" ? t.clients.unarchiveClient : t.clients.archiveClient}
         </button>
 
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button
-            className={`radio-chip ${activeTab === "history" ? "selected" : ""}`}
-            style={{ flex: 1 }}
-            onClick={() => setActiveTab("history")}
-          >
-            {t.clients.historyTitle}
-          </button>
-          <button
-            className={`radio-chip ${activeTab === "performance" ? "selected" : ""}`}
-            style={{ flex: 1 }}
-            onClick={() => setActiveTab("performance")}
-          >
-            {t.clients.performanceTitle}
-          </button>
-        </div>
+        <Link
+          href={`/clients/${client.id}/training`}
+          className="btn btn-secondary btn-block"
+          style={{ marginTop: 10 }}
+        >
+          {t.clients.performanceTitle}
+        </Link>
 
-        {activeTab === "history" ? (
-          <>
-            {sessions === null ? <LoadingState /> : null}
+        <h2 className="section-title">{t.clients.historyTitle}</h2>
 
-            {sessions && sessions.length === 0 ? (
-              <EmptyState icon="📋" message={t.clients.noHistory} />
-            ) : null}
+        {sessions === null ? <LoadingState /> : null}
 
-            {sessions && sessions.length > 0
-              ? sessions.map((session) => {
-                  const badge = statusBadge[session.status] ?? statusBadge.draft;
-                  return (
-                    <Link key={session.id} href={`/workout/${session.id}`} className="card-link">
-                      <div className="card">
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <div style={{ fontWeight: 600 }}>{formatDateTimeWithWeekday(session.started_at)}</div>
-                            <div className="muted" style={{ marginTop: 4 }}>
-                              {t.workout.exercisesCount(session.total_exercises)} ·{" "}
-                              {t.workout.setsCount(session.total_sets)}
-                            </div>
-                          </div>
-                          <span className={`badge ${badge.cls}`}>{badge.label}</span>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })
-              : null}
-          </>
-        ) : (
-          <>
-            {performanceError ? (
-              <div className="banner banner-error" style={{ marginTop: 12 }}>{performanceError}</div>
-            ) : null}
+        {sessions && sessions.length === 0 ? (
+          <EmptyState icon="📋" message={t.clients.noHistory} />
+        ) : null}
 
-            {records === null && !performanceError ? <LoadingState /> : null}
-
-            {records && records.length === 0 ? (
-              <EmptyState icon="📈" message={t.clients.noPerformance} />
-            ) : null}
-
-            {records && records.length > 0 ? (
-              <>
-                <div className="training-summary">
-                  <span className="training-week">{t.training.weekSummary(trainedThisWeek(records))}</span>
-                  <span className="muted">
-                    {t.training.lastUpdated(records[0].last_session_date.replaceAll("-", "/"))}
-                  </span>
+        {(sessions ?? []).map((session) => {
+          const badge = statusBadge[session.status] ?? statusBadge.draft;
+          return (
+            <Link key={session.id} href={`/workout/${session.id}`} className="card-link">
+              <div className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{formatDateTimeWithWeekday(session.started_at)}</div>
+                    <div className="muted" style={{ marginTop: 4 }}>
+                      {t.workout.exercisesCount(session.total_exercises)} ·{" "}
+                      {t.workout.setsCount(session.total_sets)}
+                    </div>
+                  </div>
+                  <span className={`badge ${badge.cls}`}>{badge.label}</span>
                 </div>
-                <TrainingRecordList
-                  clientId={params.clientId}
-                  records={records}
-                  onQuickLog={setQuickLogFor}
-                />
-              </>
-            ) : null}
-          </>
-        )}
+              </div>
+            </Link>
+          );
+        })}
       </div>
 
-      {quickLogFor ? (
-        <QuickLogSheet
-          record={quickLogFor}
-          saving={savingQuickLog}
-          onSave={handleQuickLog}
-          onClose={() => setQuickLogFor(null)}
-        />
-      ) : null}
-
-      {toast ? <Toast message={toast} onDismiss={() => setToast(null)} /> : null}
     </div>
   );
 }

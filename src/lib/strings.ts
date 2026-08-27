@@ -86,6 +86,7 @@ export const t = {
       days === 0 ? "今天" : days === 1 ? "昨天" : `${days} 天前`,
     historyTitle: "歷史紀錄",
     latest: "最新",
+    pickExercise: "選擇動作",
     quickLogTitle: (name: string) => `新增「${name}」紀錄`,
     reuseLast: "沿用上次",
     reuseLastDetail: (weight: number, unit: string, sets: number) =>
